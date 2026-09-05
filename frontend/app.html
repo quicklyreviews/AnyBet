@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyBet - bet on anything, settled by AI consensus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="icon" id="favicon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "genlayer-js": "https://esm.sh/genlayer-js@1.1.8",
+    "genlayer-js/chains": "https://esm.sh/genlayer-js@1.1.8/chains",
+    "genlayer-js/types": "https://esm.sh/genlayer-js@1.1.8/types"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <a class="lockup" href="index.html" title="Back to the home page">
+        <span class="mark-slot" id="mark-slot"></span>
+        <h1>AnyBet</h1>
+      </a>
+      <p class="tagline">Ask anything. GenLayer validators read the evidence and settle it.</p>
+      <a class="chain-badge" href="https://genlayer.com" target="_blank" rel="noopener">
+        <span class="dot" id="chain-dot"></span>
+        <span>Built on <strong>GenLayer</strong></span>
+        <span class="sep">/</span>
+        <span id="chain-label">StudioNet 61999</span>
+      </a>
+    </div>
+
+    <button id="btn-open-login" class="primary">Connect wallet</button>
+
+    <div class="account" id="wallet" hidden>
+      <dl class="account-grid">
+        <div>
+          <dt>Account</dt>
+          <dd><code id="wallet-address">-</code></dd>
+        </div>
+        <div>
+          <dt>Network</dt>
+          <dd>
+            <span id="network-name">-</span>
+            <button id="btn-switch-chain" class="link" hidden>Switch</button>
+          </dd>
+        </div>
+        <div>
+          <dt>In wallet</dt>
+          <dd><span id="wallet-gas">-</span> <span class="unit">GEN</span></dd>
+        </div>
+        <div>
+          <dt>Deposited</dt>
+          <dd><span id="wallet-balance">-</span> <span class="unit">GEN</span></dd>
+        </div>
+      </dl>
+      <div class="account-actions">
+        <button id="btn-fund" class="ghost">Get test GEN</button>
+        <button id="btn-deposit" class="ghost">Deposit</button>
+        <button id="btn-withdraw" class="ghost">Withdraw</button>
+        <button id="btn-signout" class="ghost quiet">Disconnect</button>
+      </div>
+      <p class="fineprint" id="signer-note"></p>
+    </div>
+  </div>
+</header>
+
+<div class="stats-strip">
+  <div class="wrap stats" id="stats">
+    <div><dt>Markets opened</dt><dd id="stat-markets">-</dd></div>
+    <div><dt>Bets placed</dt><dd id="stat-bets">-</dd></div>
+    <div><dt>Staked to date</dt><dd id="stat-volume">-</dd></div>
+    <div><dt>Riding on open markets</dt><dd id="stat-atrisk">-</dd></div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="guide" id="guide">
+    <div class="guide-head">
+      <h2>How to play</h2>
+      <button class="link" id="btn-toggle-guide">Hide</button>
+    </div>
+    <ol class="guide-steps" id="guide-steps">
+      <li>
+        <h3>Connect a wallet</h3>
+        <p>Any EVM wallet. StudioNet is added for you, and <strong>Get test GEN</strong> tops you up. Nothing here costs real money.</p>
+      </li>
+      <li>
+        <h3>Deposit once</h3>
+        <p>Move GEN into the contract. Bets are staked from that balance, so placing one transfers nothing.</p>
+      </li>
+      <li>
+        <h3>Back YES or NO</h3>
+        <p>The pool minus the fee splits across the winning side by stake, so the price moves as money arrives.</p>
+      </li>
+      <li>
+        <h3>Anyone resolves</h3>
+        <p>After close, one click sends every validator to fetch the sources and judge. They must agree, or it voids.</p>
+      </li>
+      <li>
+        <h3>Collect</h3>
+        <p>Winnings are recorded, not pushed. You claim them, which is what makes a win something you noticed.</p>
+      </li>
+    </ol>
+    <p class="guide-note">
+      Every step waits about a minute for consensus &mdash; that is GenLayer
+      agreeing, not the page hanging. Betting closes 75 seconds early for the
+      same reason.
+    </p>
+  </section>
+
+  <section class="panel login" id="login-panel">
+    <h2>Connect a wallet to play</h2>
+    <p class="lede">
+      Reading is open to everyone &mdash; every market, price and verdict below
+      is visible right now. Betting, opening a market and collecting move money,
+      so they need an account that is yours.
+    </p>
+    <button id="btn-login-wallet" class="primary">Connect wallet</button>
+    <p class="fineprint">
+      This page holds no keys. Your wallet signs each action, and disconnecting
+      leaves nothing behind.
+    </p>
+  </section>
+
+  <section class="panel claimable" id="claimable-panel" hidden>
+    <h2>Ready to collect</h2>
+    <div id="claimable-list"></div>
+  </section>
+
+  <section id="markets-section">
+    <div class="section-head">
+      <h2>Markets</h2>
+      <div class="section-tools">
+        <button id="btn-open-create" class="primary" hidden>Open a market</button>
+        <button id="btn-refresh" class="link">Refresh</button>
+      </div>
+    </div>
+    <div id="markets"></div>
+  </section>
+
+  <section class="panel" id="create-panel" hidden>
+    <div class="section-head">
+      <h2>Open a market</h2>
+      <button class="link" id="btn-close-create">Close</button>
+    </div>
+    <p class="lede">
+      Ask anything, as long as you say how it should be judged and where to look.
+      At close, every validator fetches your sources and runs the same prompt.
+      They have to agree, or nobody is paid and everybody is refunded.
+    </p>
+
+    <div class="templates">
+      <span class="eyebrow">Start from a worked example</span>
+      <div class="template-chips" id="template-chips"></div>
+      <p class="fineprint" id="template-note">
+        Each one is built from live data at the moment you click it, so the
+        question is genuinely open when you post it.
+      </p>
+    </div>
+
+    <form id="create-form">
+      <label>
+        Question
+        <input id="f-question" maxlength="300" required
+               placeholder="Will Hanoi see rain tomorrow?">
+      </label>
+      <label>
+        How should this be decided?
+        <textarea id="f-criteria" maxlength="600" rows="3" required
+                  placeholder="Name the exact field to read and the threshold. Say what counts as UNKNOWN."></textarea>
+      </label>
+      <label>
+        Sources to check <span class="hint-inline">up to 3, comma separated</span>
+        <input id="f-sources" spellcheck="false"
+               placeholder="https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd">
+      </label>
+      <div class="source-tools">
+        <button type="button" id="btn-check-sources" class="ghost">Check sources now</button>
+        <span class="warn" id="source-warning" hidden></span>
+      </div>
+      <div id="source-preview" class="source-preview" hidden></div>
+
+      <div class="row">
+        <label>
+          Closes in
+          <select id="f-window">
+            <option value="6">6 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="360">6 hours</option>
+            <option value="1440">1 day</option>
+            <option value="10080">1 week</option>
+          </select>
+        </label>
+        <label>
+          Minimum bet <span class="hint-inline">GEN</span>
+          <input id="f-minbet" type="number" step="0.001" min="0.001" value="0.01">
+        </label>
+        <label>
+          Fee <span class="hint-inline">%</span>
+          <input id="f-fee" type="number" step="0.1" min="0" max="10" value="3">
+        </label>
+      </div>
+      <button type="submit" id="btn-create" class="primary">Open this market</button>
+    </form>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>
+    Intelligent Contract <code id="contract-address">-</code> running in GenVM on
+    GenLayer StudioNet, chain 61999.
+    <a id="explorer-link" href="#" target="_blank" rel="noopener">View on the explorer</a>
+  </p>
+  <p class="fineprint">
+    Every market is settled by GenLayer's Optimistic Democracy: validators fetch
+    the sources independently, run the same prompt, and the transaction only
+    lands if their verdicts match. No oracle, no admin key.
+    Your wallet signs every action and no key ever reaches this page. StudioNet
+    is a test network; the GEN on it is not worth anything.
+  </p>
+</footer>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

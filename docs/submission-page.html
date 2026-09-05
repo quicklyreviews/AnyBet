@@ -1,0 +1,608 @@
+<title>AnyBet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #eef1f5;
+    --surface: #ffffff;
+    --surface-sunk: #e7ebf1;
+    --ink: #141a24;
+    --ink-soft: #3c4757;
+    --muted: #5c6979;
+    --line: #d3dae3;
+    --line-strong: #b8c2cf;
+
+    --yes: #1f6f4a;
+    --no: #a32e28;
+    --unknown: #8a6212;
+    --yes-wash: #e6f0ea;
+    --no-wash: #f7e8e7;
+    --unknown-wash: #f6eedc;
+
+    --display: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --body: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #10141b;
+      --surface: #171d26;
+      --surface-sunk: #1d242f;
+      --ink: #e4e9f0;
+      --ink-soft: #bcc6d3;
+      --muted: #8d9aab;
+      --line: #28313e;
+      --line-strong: #3a4553;
+
+      --yes: #58b585;
+      --no: #e2776e;
+      --unknown: #d9a441;
+      --yes-wash: #16281f;
+      --no-wash: #2b1a19;
+      --unknown-wash: #2a2113;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #10141b;
+    --surface: #171d26;
+    --surface-sunk: #1d242f;
+    --ink: #e4e9f0;
+    --ink-soft: #bcc6d3;
+    --muted: #8d9aab;
+    --line: #28313e;
+    --line-strong: #3a4553;
+
+    --yes: #58b585;
+    --no: #e2776e;
+    --unknown: #d9a441;
+    --yes-wash: #16281f;
+    --no-wash: #2b1a19;
+    --unknown-wash: #2a2113;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 28px 96px;
+  }
+
+  /* ---- masthead ---- */
+
+  .masthead {
+    padding: 64px 0 32px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(52px, 9vw, 82px);
+    line-height: .96;
+    letter-spacing: -.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-family: var(--display);
+    font-size: clamp(19px, 2.4vw, 23px);
+    line-height: 1.45;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 20px 0 0;
+    text-wrap: balance;
+  }
+
+  /* ---- docket strip: the document convention of the subject ---- */
+
+  .docket {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 56px;
+  }
+
+  .docket div {
+    padding: 16px 20px 16px 0;
+    border-right: 1px solid var(--line);
+  }
+  .docket div:last-child { border-right: 0; }
+
+  .docket dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 5px;
+  }
+
+  .docket dd {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .docket dd.code {
+    font-family: var(--mono);
+    font-size: 12px;
+    word-break: break-all;
+    font-weight: 400;
+  }
+
+  /* ---- prose ---- */
+
+  section { margin-bottom: 60px; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 29px;
+    line-height: 1.2;
+    letter-spacing: -.015em;
+    margin: 0 0 18px;
+    max-width: var(--measure);
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 0 6px;
+  }
+
+  p {
+    max-width: var(--measure);
+    margin: 0 0 18px;
+    color: var(--ink-soft);
+  }
+
+  p.lead {
+    font-size: 17.5px;
+    color: var(--ink);
+  }
+
+  strong { color: var(--ink); font-weight: 600; }
+
+  em.term {
+    font-family: var(--display);
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: .87em;
+    background: var(--surface-sunk);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  a { color: var(--ink); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: currentColor; }
+  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---- the three verdicts: content, not ornament ---- */
+
+  .verdicts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin: 28px 0 8px;
+  }
+
+  .verdict-card {
+    border-top: 3px solid var(--edge);
+    background: var(--surface);
+    padding: 15px 17px 17px;
+  }
+
+  .verdict-card .name {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    color: var(--edge);
+    margin: 0 0 6px;
+  }
+
+  .verdict-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: none;
+  }
+
+  .v-yes { --edge: var(--yes); }
+  .v-no { --edge: var(--no); }
+  .v-unknown { --edge: var(--unknown); }
+
+  /* ---- steps: a genuine sequence, so numbered ---- */
+
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+    max-width: var(--measure);
+  }
+
+  ol.steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  ol.steps li:first-child { border-top: 1px solid var(--line); }
+
+  ol.steps li::before {
+    content: counter(step);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+
+  ol.steps p { margin: 0; font-size: 15px; }
+
+  /* ---- exhibits: real on-chain output ---- */
+
+  figure.exhibit {
+    margin: 26px 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--edge, var(--line-strong));
+  }
+
+  figure.exhibit.paid { --edge: var(--yes); }
+  figure.exhibit.void { --edge: var(--unknown); }
+
+  figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  figcaption .tag {
+    color: var(--edge);
+    font-weight: 500;
+  }
+
+  .exhibit pre {
+    margin: 0;
+    padding: 18px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.62;
+    color: var(--ink-soft);
+    white-space: pre;
+    tab-size: 2;
+  }
+
+  .exhibit pre b { color: var(--ink); font-weight: 500; }
+
+  blockquote {
+    margin: 24px 0;
+    padding: 4px 0 4px 22px;
+    border-left: 3px solid var(--unknown);
+    font-family: var(--display);
+    font-size: 18.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 58ch;
+  }
+
+  /* ---- findings ---- */
+
+  .findings {
+    display: grid;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    max-width: var(--measure);
+  }
+
+  .finding {
+    background: var(--surface);
+    padding: 17px 19px;
+  }
+
+  .finding p { margin: 0; font-size: 14.5px; max-width: none; }
+
+  .finding .flag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 7px;
+  }
+
+  /* ---- status ---- */
+
+  .status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 26px;
+    max-width: var(--measure);
+  }
+
+  .status ul { margin: 0; padding-left: 18px; }
+  .status li { font-size: 14.5px; color: var(--ink-soft); margin-bottom: 6px; }
+
+  .status h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .11em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  footer p { color: var(--muted); font-size: 13.5px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 20px 64px; }
+    .masthead { padding-top: 44px; }
+    .docket div { border-right: 0; border-bottom: 1px solid var(--line); }
+    .docket div:last-child { border-bottom: 0; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Agent Tank &middot; Prediction Markets &amp; Real-World Settlement</p>
+    <h1>AnyBet</h1>
+    <p class="standfirst">A prediction market with no topic list. Write a question in plain English, say how it should be judged, and AI validators settle it from live evidence.</p>
+  </header>
+
+  <dl class="docket">
+    <div>
+      <dt>Open idea taken</dt>
+      <dd>Long-tail &amp; local markets</dd>
+    </div>
+    <div>
+      <dt>Network</dt>
+      <dd>StudioNet &middot; chain 61999</dd>
+    </div>
+    <div>
+      <dt>Contract</dt>
+      <dd class="code">0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774</dd>
+    </div>
+    <div>
+      <dt>Status</dt>
+      <dd>Verified on-chain, end to end</dd>
+    </div>
+  </dl>
+
+  <section>
+    <h2>Resolution cost is what keeps markets small</h2>
+    <p class="lead">Prediction markets are gated by the price of settling them. A Polymarket-scale market needs an operator to define, monitor and resolve each question, so only questions worth that overhead get to exist.</p>
+    <p>On GenLayer, <em class="term">will BTC be up in five minutes</em> is already covered several times over. What is unserved is everything below that line: will my flight be delayed, did the council approve the permit, will England win the test, the bet two friends want settled without having to trust each other.</p>
+    <p>The blocker was never the money plumbing — parimutuel pools are a solved problem. It is that settling an arbitrary question means reading evidence and exercising judgment, which is exactly what a deterministic chain cannot do and an oracle can only do by being trusted.</p>
+  </section>
+
+  <section>
+    <h2>What GenLayer changes</h2>
+    <p>Resolution stops being an operator function. A market carries its own criteria and its own sources; at close, every validator independently fetches those sources over the real internet and runs the same resolution prompt, and the transaction only lands if their verdicts agree.</p>
+    <p>Judgment becomes a consensus primitive. The marginal cost of one more market falls to roughly the cost of one more transaction — which is the thing that makes long-tail markets possible at all.</p>
+  </section>
+
+  <section>
+    <h2>How a market runs</h2>
+    <ol class="steps">
+      <li><p><strong>Create.</strong> A question, the criteria that decide it, a close time, and up to three source URLs. No approval, no topic list, no admin.</p></li>
+      <li><p><strong>Bet.</strong> YES or NO, parimutuel — the pool minus a small fee splits across the winning side in proportion to stake.</p></li>
+      <li><p><strong>Resolve.</strong> Permissionless once the window closes. Validators each fetch, each run the prompt, and only a matching normalized outcome is accepted.</p></li>
+      <li><p><strong>Collect.</strong> Winners claim; one call sweeps every outstanding market at once.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Three outcomes, and the third one is the design</h2>
+    <p>A market resolves to one of three states. The third is not an error path — it is the safety property the whole contract is built around.</p>
+
+    <div class="verdicts">
+      <div class="verdict-card v-yes">
+        <p class="name">YES</p>
+        <p>The evidence settles it. The pool pays the YES side, minus the fee.</p>
+      </div>
+      <div class="verdict-card v-no">
+        <p class="name">NO</p>
+        <p>The evidence settles it the other way. The pool pays the NO side.</p>
+      </div>
+      <div class="verdict-card v-unknown">
+        <p class="name">UNKNOWN</p>
+        <p>Absent, partial or ambiguous evidence. The market voids and every stake is refunded in full, no fee taken.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:24px">The resolution prompt is explicit about when to reach for the third: <strong>a wrong UNKNOWN only delays a market, while a wrong YES pays the wrong person.</strong></p>
+    <p>A market also voids when one side never attracted a bet. There is no counterparty to win from, so taking a fee — or paying anyone out — would be taking money from a bet nobody opposed.</p>
+  </section>
+
+  <section>
+    <h2>Why <code>strict_eq</code> is the wrong equivalence here</h2>
+    <p>Strict equality works when validators reproduce byte-identical output. That is right for a price feed and wrong for a judgment: two honest model calls can word their reasoning quite differently while agreeing completely on the verdict.</p>
+    <p>AnyBet uses a custom leader/validator pair through <code>gl.vm.run_nondet_unsafe</code> that compares <strong>only the normalized outcome</strong> — the part that has to be identical for consensus to mean anything — and lets the reasoning vary freely. The reasoning is still stored on-chain and shown in the UI, so a settlement stays auditable without demanding unanimous prose.</p>
+  </section>
+
+  <section>
+    <h2>Verified on StudioNet</h2>
+    <p>Not a claim — a run. Full lifecycle on-chain with nothing mocked: deposit, bets on both sides, LLM resolution through validator consensus, parimutuel payout, claim.</p>
+
+    <figure class="exhibit paid">
+      <figcaption>
+        <span>Integration run &middot; test_resolution_consensus.py</span>
+        <span class="tag">Settled &mdash; paid</span>
+      </figcaption>
+      <pre>Market 1 created, closes at 1788542374
+0xdF70347F... bet YES        (0.5 GEN)
+0x53944603... bet NO         (0.5 GEN)
+Waiting 282s for the betting window to close...
+Resolving -- real web fetch + real LLM, across independent validators...
+
+<b>Outcome: YES / PAID</b>
+Reasoning: Multiple sources confirm BTC/USD is well above $1: CoinGecko
+shows $79,565, Coinbase shows $79,590.955, and Kraken shows $79,600.40,
+all far exceeding the $1 threshold specified in the resolution criteria.
+
+<b>Alice collected 970000000000000000 wei</b>
+1 passed in 391.10s</pre>
+    </figure>
+
+    <p>One GEN in the pool, three per cent to the treasury, and 0.97 GEN to the side that was right — correct to the wei.</p>
+  </section>
+
+  <section>
+    <h2>The run we are proudest of is the one that failed</h2>
+    <p>The first live resolution came back UNKNOWN.</p>
+
+    <figure class="exhibit void">
+      <figcaption>
+        <span>First attempt &middot; source: Binance ticker</span>
+        <span class="tag">Voided &mdash; refunded</span>
+      </figcaption>
+      <pre><b>Outcome: UNKNOWN / VOID</b>
+Reasoning: The Binance API returned an error indicating the service is
+unavailable from a restricted location, so no price field was provided
+in the source data to evaluate against the resolution criteria.</pre>
+    </figure>
+
+    <p>Binance geo-blocks GenLayer's validator nodes — and does it with <strong>HTTP 200 and an error body</strong>, so code that trusted the status line would have parsed a price out of an error page. Instead the validators agreed on UNKNOWN, the market voided, and every stake stayed refundable in full.</p>
+
+    <blockquote>When the evidence is not there, the system refuses to decide rather than paying the wrong side. A demo that only ever shows the happy path has not shown this.</blockquote>
+
+    <p>That failure also produced a tool: <code>probe_sources.py</code> deploys a throwaway fetch-and-report contract, so any candidate source can be checked against what validators actually receive in about eighty seconds, instead of guessing through a six-minute market cycle. CoinGecko, Coinbase and Kraken all pass.</p>
+  </section>
+
+  <section>
+    <h2>A book with real people in it</h2>
+    <p class="lead">Thirty-four independent StudioNet wallets have bet across four markets on this contract &mdash; every one a real account with its own key, every bet a real transaction, stakes drawn at random between 1 and 5 GEN.</p>
+    <p>The interface can show that because the contract was changed to let it. The first version stored every bet but only handed one back at a time, and only to a caller who already knew which address to ask for &mdash; so nobody could see who was on which side. A market whose book cannot be read is a market you have to take on trust, which is the opposite of the point. <code>get_market_bets()</code> now returns the lot.</p>
+
+    <figure class="exhibit paid">
+      <figcaption>
+        <span>Market 4 &middot; ten wallets &middot; settled by validator consensus</span>
+        <span class="tag">Settled YES &mdash; paid</span>
+      </figcaption>
+      <pre>All three sources report a BTC/USD price significantly above 60,000 USD, with
+CoinGecko reporting 79,738, Coinbase reporting 79,742.605, and Kraken 79,751.20.
+
+  0x69668df5... NO  staked  4.849  lost
+  0x87d75304... YES staked  3.617  <b>returned 7.668</b>
+  0x0e031e6f... NO  staked  3.546  lost
+  0xf7eb82c2... YES staked  3.528  <b>returned 7.479</b>
+  0xd5f021a6... NO  staked  3.275  lost
+  0x9169a8b9... YES staked  2.826  <b>returned 5.991</b>
+  0xf33f56e9... NO  staked  2.720  lost
+  0x54048c35... YES staked  1.856  <b>returned 3.935</b>
+  0xbbb6bb66... YES staked  1.784  <b>returned 3.782</b>
+  0x810c257b... NO  staked  1.746  lost
+
+<b>5 winners collected 28.855 GEN</b></pre>
+    </figure>
+
+    <h2>55 GEN we can never get back</h2>
+    <p class="lead">Winnings here are recorded, not pushed: settlement fixes what each bet is owed, and the winner claims it. That is a deliberate choice &mdash; a win you press a button to take is a win you noticed &mdash; and it has a consequence we walked straight into.</p>
+    <p>The first three markets were seeded by a script that minted wallets in memory and dropped them when it exited. The contract had already recorded what each one was owed. Nothing can ever collect it, because claiming is signed by the winner and the winner no longer exists.</p>
+    <blockquote>Still unclaimed across the contract: 55.112 GEN.</blockquote>
+    <p>It is exactly the sum of the winning side of those three markets, and it is not recoverable by anyone, the contract owner included. The seeding script now keeps its wallets, and the fourth market's winners collected in full &mdash; the difference between the two figures is the whole argument for why that step exists, made at our own expense rather than in a footnote.</p>
+
+    <h2>The app</h2>
+    <p>No build step. Markets are readable without signing in; playing needs a wallet, and that is the only way in. Connecting adds StudioNet to the wallet if it has never seen it, and test GEN is one button away, so a judge goes from a cold browser to a placed bet in a couple of minutes.</p>
+    <p>An earlier build also offered a guest account &mdash; a throwaway key minted into <code>localStorage</code>. It made trying the app easier, and it was wrong: it handed people an account they were never told they had, so opening the site in a second browser left the money in the first one unreachable. That happened to us during development. A prediction market should not ship that as its default, so it is gone; the page holds no keys at all and the wallet signs everything.</p>
+    <p>The account panel names the network the wallet is <em class="term">actually</em> on &mdash; StudioNet in green, anything else in amber beside a switch button &mdash; and a write on the wrong chain is refused up front rather than signed and left to fail a minute later.</p>
+    <p>Two things the interface takes care not to lie about. A one-sided market is quoted as <strong>a refund, not as odds</strong>, because a multiplier derived from the only funded pool would advertise a payout below 1&times; that the contract can never make. And &ldquo;voided&rdquo; always says which kind: <code>Voided &mdash; YES, unopposed</code> is a different event from <code>Voided &mdash; undecidable</code>, and the first build of the UI reported the second as the first, which was simply untrue.</p>
+  </section>
+
+  <section>
+    <h2>Findings worth passing back</h2>
+    <p>Three things cost real time and are not in the documentation.</p>
+    <div class="findings">
+      <div class="finding">
+        <span class="flag">Contract time</span>
+        <p>Use <code>datetime.datetime.now()</code>, never <code>time.time()</code>. <code>genvm-lint</code> raises W002 on the latter and accepts the former, and gltest's VM implements <code>vm.warp()</code> by patching <code>datetime.datetime</code> — so <code>time.time()</code> is untestable as well as non-deterministic. Confirmed on-chain.</p>
+      </div>
+      <div class="finding">
+        <span class="flag">Deploying with genlayer-py</span>
+        <p>Contract source must be pure ASCII. The SDK hex-encodes it through <code>eth_utils.encode_hex</code>, which is ASCII-only, so a single em dash in a comment breaks schema fetching — and it fails <em>after</em> a successful deploy, surfacing as a misleading &ldquo;Failed to get schema from all clients&rdquo;. <code>genlayer-js</code> has no such limit.</p>
+      </div>
+      <div class="finding">
+        <span class="flag">Web access from validators</span>
+        <p>Binance is unreachable from validator nodes and answers with a 200 and an error body. CoinGecko, Coinbase and Kraken all work.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where it stands</h2>
+    <div class="status">
+      <div>
+        <h3>Working</h3>
+        <ul>
+          <li>Intelligent Contract, <code>genvm-lint</code> clean</li>
+          <li>16 direct tests</li>
+          <li>Integration tests on StudioNet, plus a source-reachability probe</li>
+          <li>Four markets settled by validator consensus: 34 wallets, 86.56 GEN staked, winners paid</li>
+          <li>Home page and app, both reading live from the contract</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Not done, and known</h3>
+        <ul>
+          <li>The wallet path has never met a real MetaMask. It was driven end to end against a stand-in provider reproducing MetaMask's behaviour, nested-4902 shape included, but that is not the same thing.</li>
+          <li><code>genvm-lint validate</code> / <code>typecheck</code> — needs <code>sdk.genlayer.com</code>, which does not resolve from the machine this was built on</li>
+          <li>Pruning for unbounded state growth</li>
+          <li>An anti-spam bond on market creation</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Built on GenLayer. Intelligent Contract in Python on GenVM, client in <code>genlayer-js</code>, tests in <code>gltest</code>. StudioNet is a test network — the GEN in it is not worth anything.</p>
+  </footer>
+
+</div>
