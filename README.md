@@ -81,6 +81,35 @@ small lie about itself.
 **`app.html` is the app.** Markets are readable straight away; playing needs a
 wallet.
 
+### Publishing it
+
+There is no backend to deploy, which is the whole story. GenPredict needs a
+keeper process holding a key so rounds lock and settle on time; AnyBet needs
+nobody, because resolving a market is permissionless — any visitor can trigger
+it, and the page talks to StudioNet directly. So this is a static site on any
+host that serves files.
+
+- **Render** — `render.yaml` is a blueprint. Point Render at this repository as
+  a Blueprint and the service is created with the publish path and headers
+  already set. Nothing to configure, and no secret to supply.
+- **GitHub Pages** — `.github/workflows/pages.yml` publishes `frontend/` on
+  every push to `main`. Set *Settings → Pages → Source* to **GitHub Actions**
+  once, and it runs itself.
+- **Anything else** — serve `frontend/` and you are done.
+
+One consequence of having no keeper: a market that closes sits at *Closed —
+awaiting resolution* until somebody clicks **Resolve now**. That is correct
+rather than broken — the contract deliberately gives no one special authority
+over settlement — but a deployment nobody visits will accumulate unresolved
+markets. `tests/integration/resolve_closed.py` is the operator's version of
+that button, and it has no more authority than the button does.
+
+Two sources used by the *ISS over the north* and *Crew in orbit* templates are
+served over plain `http://`, so on an HTTPS deployment the browser blocks the
+in-form **Check sources now** preview for them as mixed content. The markets
+still resolve normally, because validators fetch server-side and are not subject
+to the browser's rule. The other nine templates are HTTPS throughout.
+
 ### Signing in is mandatory, and it is a real wallet
 
 Nothing that moves money works signed out — betting, creating a market,
