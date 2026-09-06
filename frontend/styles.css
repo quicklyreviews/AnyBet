@@ -847,3 +847,98 @@ figure.exhibit blockquote {
 .book-row.no .what { color: var(--no); }
 .book-row .outcome { color: var(--muted); text-align: right; }
 .book-empty { margin: 0; padding: 12px 13px; color: var(--muted); font-size: 13px; background: var(--ground); }
+
+/* ================= NoClaim ================= */
+
+.underwriter-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 14px; }
+
+#policies-section { margin-bottom: 26px; }
+
+.policy {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 17px 19px;
+  margin-bottom: 12px;
+}
+.policy.live { border-left-color: var(--accent); }
+.policy.due { border-left-color: var(--unknown); }
+.policy.paid { border-left-color: var(--yes); }
+.policy.refunded { border-left-color: var(--unknown); }
+
+.policy-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 4px; }
+.policy-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.25;
+}
+.badge.live { color: var(--accent); border-color: var(--accent); }
+.badge.due { color: var(--unknown); border-color: var(--unknown); }
+.badge.paid { color: var(--yes); border-color: var(--yes); }
+.badge.refunded { color: var(--unknown); border-color: var(--unknown); }
+
+.terms { display: flex; gap: 10px; margin-bottom: 13px; flex-wrap: wrap; }
+.term {
+  flex: 1;
+  min-width: 130px;
+  padding: 10px 13px;
+  border-radius: 6px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.term-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.term-value { font-size: 16px; font-variant-numeric: tabular-nums; }
+.term-value.mono { font-family: var(--mono); font-size: 13px; }
+.you {
+  font-family: var(--body);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 1px 6px;
+  margin-left: 4px;
+}
+
+.verdict.paid { border-left-color: var(--yes); }
+.verdict.refunded { border-left-color: var(--unknown); }
+
+.policy-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* The quote: what it costs and whether the pool can back it, shown while the
+   numbers are still being typed rather than after a refusal. */
+.quote {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.quote-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.quote-row:last-child { border-bottom: 0; }
+.q-label { color: var(--muted); }
+.q-value { font-variant-numeric: tabular-nums; text-align: right; }
+.q-note { color: var(--muted); font-size: 12px; }
+.quote-row.ok .q-value { color: var(--yes); }
+.quote-row.bad .q-value { color: var(--no); }

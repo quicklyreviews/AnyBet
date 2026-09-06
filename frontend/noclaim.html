@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NoClaim - cover that pays without a claim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="icon" id="favicon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "genlayer-js": "https://esm.sh/genlayer-js@1.1.8",
+    "genlayer-js/chains": "https://esm.sh/genlayer-js@1.1.8/chains",
+    "genlayer-js/types": "https://esm.sh/genlayer-js@1.1.8/types"
+  }
+}
+</script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <div class="brand">
+      <a class="lockup" href="index.html" title="Back to the home page">
+        <span class="mark-slot" id="mark-slot"></span>
+        <h1>NoClaim</h1>
+      </a>
+      <p class="tagline">Cover that pays when the trigger fires. No claim form, no adjuster.</p>
+      <a class="chain-badge" href="https://genlayer.com" target="_blank" rel="noopener">
+        <span class="dot" id="chain-dot"></span>
+        <span>Built on <strong>GenLayer</strong></span>
+        <span class="sep">/</span>
+        <span id="chain-label">StudioNet 61999</span>
+      </a>
+    </div>
+
+    <button id="btn-open-login" class="primary">Connect wallet</button>
+
+    <div class="account" id="wallet" hidden>
+      <dl class="account-grid">
+        <div>
+          <dt>Account</dt>
+          <dd><code id="wallet-address">-</code></dd>
+        </div>
+        <div>
+          <dt>Network</dt>
+          <dd>
+            <span id="network-name">-</span>
+            <button id="btn-switch-chain" class="link" hidden>Switch</button>
+          </dd>
+        </div>
+        <div>
+          <dt>In wallet</dt>
+          <dd><span id="wallet-gas">-</span> <span class="unit">GEN</span></dd>
+        </div>
+        <div>
+          <dt>To collect</dt>
+          <dd><span id="wallet-balance">-</span> <span class="unit">GEN</span></dd>
+        </div>
+      </dl>
+      <div class="account-actions">
+        <button id="btn-fund" class="ghost">Get test GEN</button>
+        <button id="btn-collect" class="ghost">Collect</button>
+        <button id="btn-signout" class="ghost quiet">Disconnect</button>
+      </div>
+      <p class="fineprint" id="signer-note"></p>
+    </div>
+  </div>
+</header>
+
+<!-- The pool's own numbers. `free` is the honest one: it is how much cover
+     this contract can still sell without overpromising. -->
+<div class="stats-strip">
+  <div class="wrap stats">
+    <div><dt>Capital in the pool</dt><dd id="stat-total">-</dd></div>
+    <div><dt>Reserved against policies</dt><dd id="stat-reserved">-</dd></div>
+    <div><dt>Free to underwrite</dt><dd id="stat-free">-</dd></div>
+    <div><dt>Paid out to date</dt><dd id="stat-paid">-</dd></div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="guide" id="guide">
+    <div class="guide-head">
+      <h2>How cover works here</h2>
+      <button class="link" id="btn-toggle-guide">Hide</button>
+    </div>
+    <ol class="guide-steps" id="guide-steps">
+      <li>
+        <h3>Name the trigger</h3>
+        <p>The event you want cover against, how it should be judged, and where to look. No product catalogue to pick from.</p>
+      </li>
+      <li>
+        <h3>Pay a premium</h3>
+        <p>The pool reserves your full payout the moment the policy is written, so it can never sell cover it could not honour.</p>
+      </li>
+      <li>
+        <h3>Nobody files anything</h3>
+        <p>At expiry anyone triggers settlement. Validators fetch your sources and adjudicate. There is no assessor to convince.</p>
+      </li>
+      <li>
+        <h3>Three ways it ends</h3>
+        <p>Fired pays the sum insured. Not fired earns the pool your premium. <strong>Unknowable refunds you in full.</strong></p>
+      </li>
+    </ol>
+    <p class="guide-note">
+      That last one is the part that is not like insurance. Ordinarily doubt
+      favours the insurer and an unprovable claim is denied. Here, if the
+      evidence cannot settle it, the pool earns nothing and your premium comes
+      back &mdash; possible only because the adjudicator works for neither side.
+    </p>
+  </section>
+
+  <section class="panel login" id="login-panel">
+    <h2>Connect a wallet to use this</h2>
+    <p class="lede">
+      The pool and every policy written against it are readable right now. Buying
+      cover, underwriting and collecting move money, so they need an account that
+      is yours.
+    </p>
+    <button id="btn-login-wallet" class="primary">Connect wallet</button>
+    <p class="fineprint">
+      This page holds no keys. Your wallet signs each action, and disconnecting
+      leaves nothing behind.
+    </p>
+  </section>
+
+  <section class="panel claimable" id="collect-panel" hidden>
+    <h2>Ready to collect</h2>
+    <p class="lede" id="collect-line"></p>
+    <button id="btn-collect-all" class="primary">Collect it</button>
+  </section>
+
+  <section class="panel" id="buy-panel" hidden>
+    <h2>Buy cover</h2>
+    <p class="lede">
+      Describe what you want covering and what would prove it happened. At expiry
+      every validator fetches your sources and judges independently &mdash; they
+      have to agree, or the premium comes back.
+    </p>
+
+    <div class="templates">
+      <span class="eyebrow">Start from a worked example</span>
+      <div class="template-chips" id="template-chips"></div>
+      <p class="fineprint" id="template-note">
+        Each is built from live data at the moment you click it, so the trigger
+        sits where the risk actually is rather than at a number typed last week.
+      </p>
+    </div>
+
+    <form id="buy-form">
+      <label>
+        What are you covering against?
+        <input id="f-trigger" maxlength="300" required
+               placeholder="Will Hanoi get more than 25mm of rain tomorrow?">
+      </label>
+      <label>
+        How should that be judged?
+        <textarea id="f-criteria" maxlength="600" rows="3" required
+                  placeholder="Name the exact field and threshold, and say what counts as UNKNOWN."></textarea>
+      </label>
+      <label>
+        Sources <span class="hint-inline">up to 3, comma separated</span>
+        <input id="f-sources" spellcheck="false"
+               placeholder="https://api.open-meteo.com/v1/forecast?...">
+      </label>
+      <div class="source-tools">
+        <button type="button" id="btn-check-sources" class="ghost">Check sources now</button>
+        <span class="warn" id="source-warning" hidden></span>
+      </div>
+      <div id="source-preview" class="source-preview" hidden></div>
+
+      <div class="row">
+        <label>
+          Sum insured <span class="hint-inline">GEN</span>
+          <input id="f-payout" type="number" step="0.1" min="0.1" value="5">
+        </label>
+        <label>
+          Premium <span class="hint-inline">GEN</span>
+          <input id="f-premium" type="number" step="0.01" min="0" value="0.1">
+        </label>
+        <label>
+          Cover runs for
+          <select id="f-window">
+            <option value="6">6 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="360">6 hours</option>
+            <option value="1440">1 day</option>
+            <option value="10080">1 week</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Published so nobody is surprised at the till: what it costs, and
+           whether the pool can back it at all. -->
+      <div class="quote" id="quote"></div>
+
+      <button type="submit" id="btn-buy" class="primary">Buy this cover</button>
+    </form>
+  </section>
+
+  <section id="policies-section">
+    <div class="section-head">
+      <h2>Policies</h2>
+      <div class="section-tools">
+        <button id="btn-open-buy" class="primary" hidden>Buy cover</button>
+        <button id="btn-refresh" class="link">Refresh</button>
+      </div>
+    </div>
+    <div id="policies"></div>
+  </section>
+
+  <section class="panel" id="underwrite-panel">
+    <h2>Underwrite</h2>
+    <p class="lede">
+      Put capital behind the policies this contract writes. You are taking real
+      risk &mdash; a run of fired policies loses some of it. What cannot happen is
+      capital disappearing into cover that was never backed: every policy reserves
+      its payout up front, and you can only withdraw what is unreserved.
+    </p>
+    <dl class="account-grid underwriter-grid">
+      <div><dt>Your stake</dt><dd><span id="uw-stake">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Premiums earned</dt><dd><span id="uw-earned">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Free to withdraw</dt><dd><span id="uw-free">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Underwriters</dt><dd id="uw-count">-</dd></div>
+    </dl>
+    <div class="account-actions" id="uw-actions">
+      <button id="btn-fund-pool" class="primary">Add capital</button>
+      <button id="btn-withdraw-pool" class="ghost">Withdraw</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>
+    Intelligent Contract <code id="contract-address">-</code> running in GenVM on
+    GenLayer StudioNet, chain 61999.
+    <a id="explorer-link" href="#" target="_blank" rel="noopener">View on the explorer</a>
+    &middot; <a href="app.html">AnyBet, the prediction market</a>
+  </p>
+  <p class="fineprint">
+    Settlement is permissionless: validators fetch the sources independently, run
+    the same prompt, and the transaction only lands if their verdicts match. No
+    oracle, no adjuster, no admin key. StudioNet is a test network; the GEN on it
+    is not worth anything.
+  </p>
+</footer>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="noclaim.js"></script>
+</body>
+</html>
