@@ -470,10 +470,18 @@ async function main() {
   $('contract-address').textContent = CONTRACT;
   $('explorer-link').href = `${EXPLORER}/address/${CONTRACT}`;
 
-  await initWallet({ onAuthChange: renderAccount });
+  // Connecting changes the answer to "which of these are mine", and that
+  // answer comes from the contract rather than from a filter here - so an auth
+  // change has to re-read the policies, not merely re-render them.
+  await initWallet({
+    onAuthChange: () => {
+      renderAccount();
+      loadPolicies().catch((e) => console.error('policies', e));
+    },
+  });
 
   $('btn-open-login').onclick = () => requireSignIn('use this');
-  $('btn-login-wallet').onclick = async () => { if (await connectWallet()) await refreshAccount(); };
+  $('btn-login-wallet').onclick = async () => { if (await connectWallet()) await reloadAll(); };
   $('btn-signout').onclick = signOut;
   $('btn-switch-chain').onclick = async () => {
     const ok = await ensureStudioChain();
