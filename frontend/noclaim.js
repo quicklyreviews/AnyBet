@@ -26,6 +26,7 @@ const contract = makeContract(CONTRACT);
 
 let pool = null;
 let policies = [];
+let mine = [];
 
 // --- account ---------------------------------------------------------
 
@@ -34,8 +35,7 @@ function renderAccount() {
   $('login-panel').hidden = inFlag;
   $('wallet').hidden = !inFlag;
   $('btn-open-login').hidden = inFlag;
-  $('btn-open-buy').hidden = !inFlag;
-  if (!inFlag) $('buy-panel').hidden = true;
+  if (!inFlag) { $('buy-panel').hidden = true; $('mine-section').hidden = true; }
   $('uw-actions').style.display = inFlag ? '' : 'none';
 
   const chain = chainLabel();
@@ -124,10 +124,101 @@ function countdown(seconds) {
 async function loadPolicies() {
   const raw = await contract.read('get_all_policies');
   policies = sortForDisplay(Object.values(typeof raw === 'string' ? JSON.parse(raw) : (raw || {})));
+
+  // Asked of the contract rather than filtered here: get_policies_of is the
+  // contract's own answer to "what am I covered for", and using it means the
+  // page and the chain cannot disagree about whose policy is whose.
+  mine = [];
+  if (signer.address) {
+    try {
+      const own = await contract.read('get_policies_of', [signer.address]);
+      mine = JSON.parse(typeof own === 'string' ? own : '[]');
+    } catch (e) {
+      console.error('own policies', e);
+    }
+  }
   renderPolicies();
 }
 
+/** One policy, rendered the same whether it is yours or somebody else's - the
+ *  only difference is which list it lands in. */
+function policyCard(p) {
+  const state = policyState(p);
+  const payout = BigInt(p.payout || 0);
+  const premium = BigInt(p.premium || 0);
+  const isMine = signer.address && p.holder === signer.address.toLowerCase();
+
+  const card = document.createElement('article');
+  card.className = `policy ${state.key}`;
+  card.innerHTML = `
+    <div class="policy-head">
+      <h3>${escapeHtml(p.trigger)}</h3>
+      <span class="badge ${state.key}">${escapeHtml(state.label)}</span>
+    </div>
+    <p class="criteria">${escapeHtml(p.criteria)}</p>
+    <div class="terms">
+      <div class="term">
+        <span class="term-label">Sum insured</span>
+        <span class="term-value">${gen(payout)} <span class="unit">GEN</span></span>
+      </div>
+      <div class="term">
+        <span class="term-label">Premium paid</span>
+        <span class="term-value">${gen(premium)} <span class="unit">GEN</span></span>
+      </div>
+      <div class="term">
+        <span class="term-label">Held by</span>
+        <span class="term-value mono">${escapeHtml(shorten(p.holder))}${isMine ? ' <span class="you">you</span>' : ''}</span>
+      </div>
+    </div>
+    ${p.reasoning ? `
+      <div class="verdict ${state.key}">
+        <span class="label">GenLayer validators adjudicated</span>
+        <p>${escapeHtml(p.reasoning)}</p>
+      </div>` : ''}
+    <div class="policy-actions"></div>
+  `;
+
+  if (state.key === 'due') {
+    const b = document.createElement('button');
+    b.textContent = 'Settle now';
+    b.title = 'Anyone can trigger settlement - there is no adjuster to appoint';
+    b.onclick = () => settle(p);
+    card.querySelector('.policy-actions').appendChild(b);
+  }
+  return card;
+}
+
+/** What you personally are covered for, and what your cover has done so far. */
+function renderMine() {
+  const section = $('mine-section');
+  if (!isSignedIn() || !mine.length) {
+    section.hidden = true;
+    $('btn-open-buy-alt').hidden = !isSignedIn();
+    return;
+  }
+  section.hidden = false;
+  $('btn-open-buy-alt').hidden = true;
+
+  const now = Math.floor(Date.now() / 1000);
+  let active = 0n, premiums = 0n, paid = 0n, refunded = 0n;
+  for (const p of mine) {
+    premiums += BigInt(p.premium || 0);
+    if (p.status === 'ACTIVE' && Number(p.expires_ts) > now) active += BigInt(p.payout || 0);
+    if (p.settlement === 'PAID') paid += BigInt(p.payout || 0);
+    if (p.settlement === 'REFUNDED') refunded += BigInt(p.premium || 0);
+  }
+  setText($('mine-active'), gen(active, 2));
+  setText($('mine-premiums'), gen(premiums, 3));
+  setText($('mine-paid'), gen(paid, 2));
+  setText($('mine-refunded'), gen(refunded, 3));
+
+  const host = $('mine-policies');
+  host.innerHTML = '';
+  for (const p of sortForDisplay([...mine])) host.appendChild(policyCard(p));
+}
+
 function renderPolicies() {
+  renderMine();
   const host = $('policies');
   if (!host) return;
   if (!policies.length) {
@@ -136,52 +227,7 @@ function renderPolicies() {
   }
 
   host.innerHTML = '';
-  for (const p of policies) {
-    const state = policyState(p);
-    const payout = BigInt(p.payout || 0);
-    const premium = BigInt(p.premium || 0);
-    const mine = signer.address && p.holder === signer.address.toLowerCase();
-
-    const card = document.createElement('article');
-    card.className = `policy ${state.key}`;
-    card.innerHTML = `
-      <div class="policy-head">
-        <h3>${escapeHtml(p.trigger)}</h3>
-        <span class="badge ${state.key}">${escapeHtml(state.label)}</span>
-      </div>
-      <p class="criteria">${escapeHtml(p.criteria)}</p>
-      <div class="terms">
-        <div class="term">
-          <span class="term-label">Sum insured</span>
-          <span class="term-value">${gen(payout)} <span class="unit">GEN</span></span>
-        </div>
-        <div class="term">
-          <span class="term-label">Premium paid</span>
-          <span class="term-value">${gen(premium)} <span class="unit">GEN</span></span>
-        </div>
-        <div class="term">
-          <span class="term-label">Held by</span>
-          <span class="term-value mono">${escapeHtml(shorten(p.holder))}${mine ? ' <span class="you">you</span>' : ''}</span>
-        </div>
-      </div>
-      ${p.reasoning ? `
-        <div class="verdict ${state.key}">
-          <span class="label">GenLayer validators adjudicated</span>
-          <p>${escapeHtml(p.reasoning)}</p>
-        </div>` : ''}
-      <div class="policy-actions"></div>
-    `;
-
-    const actions = card.querySelector('.policy-actions');
-    if (state.key === 'due') {
-      const b = document.createElement('button');
-      b.textContent = 'Settle now';
-      b.title = 'Anyone can trigger settlement - there is no adjuster to appoint';
-      b.onclick = () => settle(p);
-      actions.appendChild(b);
-    }
-    host.appendChild(card);
-  }
+  for (const p of policies) host.appendChild(policyCard(p));
 }
 
 // --- quoting ---------------------------------------------------------
@@ -442,10 +488,12 @@ async function main() {
   $('btn-fund-pool').onclick = fundPool;
   $('btn-withdraw-pool').onclick = withdrawPool;
 
-  $('btn-open-buy').onclick = () => {
+  const openBuy = () => {
     $('buy-panel').hidden = false;
     $('buy-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+  $('btn-open-buy').onclick = openBuy;
+  $('btn-open-buy-alt').onclick = openBuy;
   $('buy-form').addEventListener('submit', buyCover);
   $('btn-check-sources').onclick = () => previewSources();
   $('f-sources').addEventListener('input', checkSources);

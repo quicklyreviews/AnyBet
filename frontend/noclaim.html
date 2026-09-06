@@ -203,11 +203,28 @@
     </form>
   </section>
 
+  <!-- What you are covered for comes before what everyone else is covered for.
+       Finding your own policy inside a global list is not how anyone reads an
+       insurance page. -->
+  <section id="mine-section" hidden>
+    <div class="section-head">
+      <h2>Your cover</h2>
+      <button id="btn-open-buy" class="primary">Buy cover</button>
+    </div>
+    <dl class="mine-summary" id="mine-summary">
+      <div><dt>Active cover</dt><dd><span id="mine-active">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Premiums paid</dt><dd><span id="mine-premiums">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Paid out to you</dt><dd><span id="mine-paid">-</span> <span class="unit">GEN</span></dd></div>
+      <div><dt>Refunded to you</dt><dd><span id="mine-refunded">-</span> <span class="unit">GEN</span></dd></div>
+    </dl>
+    <div id="mine-policies"></div>
+  </section>
+
   <section id="policies-section">
     <div class="section-head">
-      <h2>Policies</h2>
+      <h2>Every policy written</h2>
       <div class="section-tools">
-        <button id="btn-open-buy" class="primary" hidden>Buy cover</button>
+        <button id="btn-open-buy-alt" class="primary" hidden>Buy cover</button>
         <button id="btn-refresh" class="link">Refresh</button>
       </div>
     </div>

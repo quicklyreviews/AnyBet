@@ -942,3 +942,32 @@ figure.exhibit blockquote {
 .q-note { color: var(--muted); font-size: 12px; }
 .quote-row.ok .q-value { color: var(--yes); }
 .quote-row.bad .q-value { color: var(--no); }
+
+.mine-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px 18px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.mine-summary dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.mine-summary dd {
+  margin: 0;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--display);
+  font-weight: 600;
+}
+#mine-section { margin-bottom: 28px; }
+#mine-section .section-head { margin-bottom: 12px; }
