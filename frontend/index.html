@@ -109,6 +109,52 @@
     </div>
   </section>
 
+  <!-- The bigger claim, made carefully: what is built is parametric cover, and
+       what it is built out of is more general than that. -->
+  <section class="wrap">
+    <h2>The primitive underneath is not insurance</h2>
+    <p class="lede">
+      Strip the vocabulary away and this contract does one thing:
+      <strong>hold money against a described future, read the world at a stated
+      time, and move it or give it back.</strong> Insurance is the first product
+      that shape makes. It is not the only one.
+    </p>
+
+    <div class="shapes">
+      <div class="shape built">
+        <span class="shape-tag">built</span>
+        <h3>Parametric cover</h3>
+        <p>Premium in, payout reserved, trigger read at expiry. Rainfall, heat, seismic counts, a price floor.</p>
+      </div>
+      <div class="shape">
+        <span class="shape-tag">same shape</span>
+        <h3>SLA credits</h3>
+        <p>A vendor reserves a credit against its own uptime page. Nobody files a ticket; the status page is the adjudicator.</p>
+      </div>
+      <div class="shape">
+        <span class="shape-tag">same shape</span>
+        <h3>Escrow on delivery</h3>
+        <p>Funds release when a tracking endpoint says delivered, and return when the evidence never arrives.</p>
+      </div>
+      <div class="shape">
+        <span class="shape-tag">same shape</span>
+        <h3>Milestone release</h3>
+        <p>A grant tranche that unlocks when a public artefact exists &mdash; a merged PR, a published dataset, an audit report.</p>
+      </div>
+    </div>
+
+    <p class="under-verdicts">
+      Every one of those is somebody's operations team today, reading a page and
+      pressing a button, and being trusted not to press it wrongly. What makes
+      them the same problem is that the hard part was never the money &mdash; it
+      was <strong>reading evidence and exercising judgment</strong>, which is
+      exactly what a deterministic chain cannot do and what an oracle can only
+      do by being believed. Only the first card is built here. The other three
+      are the same contract with a different trigger and a different payer, and
+      that is the point.
+    </p>
+  </section>
+
   <section class="wrap" id="settles">
     <h2>Parametric, so there is no claim to file</h2>
     <p class="lede">
@@ -214,6 +260,82 @@
         refuses to decide instead of quietly taking the money.
       </p>
     </div>
+  </section>
+
+  <!-- Devs do not want the pitch, they want the mechanism. This is the whole
+       mechanism, quoted from the deployed source rather than paraphrased. -->
+  <section class="wrap" id="build">
+    <h2>The interesting part is five lines long</h2>
+    <p class="lede">
+      An Intelligent Contract is Python running in GenVM. It can reach the open
+      internet and it can call a model &mdash; both of which are
+      non-deterministic, and neither of which a chain is allowed to simply
+      believe. The Equivalence Principle is how you get consensus out of them
+      anyway, and choosing it correctly is the entire design problem.
+    </p>
+
+    <figure class="code">
+      <figcaption>contracts/no_claim.py &mdash; the adjudication, error handling elided</figcaption>
+      <pre><code>def validator_fn(leaders_res) -&gt; bool:
+    mine   = leader_fn()                 <span class="c"># I fetch the sources myself</span>
+    theirs = leaders_res.calldata        <span class="c"># what the leader concluded</span>
+    <span class="k">return</span> mine[<span class="s">"outcome"</span>] == theirs[<span class="s">"outcome"</span>]
+
+result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)</code></pre>
+    </figure>
+
+    <p>
+      <code>strict_eq</code> is the obvious choice and it is wrong here. It
+      demands byte-identical output, which is fine for a price feed and
+      impossible for a judgment: two honest adjudications of the same evidence
+      will word their reasoning differently while agreeing completely on the
+      verdict. So the comparison is narrowed to the one field that has to match
+      for consensus to mean anything &mdash; <code>outcome</code> &mdash; and
+      <code>reasoning</code> is left free to vary. Every validator fetches the
+      sources itself; the transaction lands only if the verdicts agree.
+    </p>
+    <p>
+      The failure mode this buys you is the right one. When the evidence is
+      thin the prompt is told to reach for <code>UNKNOWN</code>, because a wrong
+      UNKNOWN costs a premium refund and a wrong FIRED pays the wrong person out
+      of somebody else's capital.
+    </p>
+
+    <h3 class="build-h3">Build on it</h3>
+    <p class="lede">
+      The contract is deployed, public and unowned. There is no admin key, no
+      keeper and no backend &mdash; settlement is permissionless, so a policy
+      that expires can be adjudicated by anyone, including a cron job that is
+      not yours.
+    </p>
+
+    <figure class="code">
+      <figcaption>genlayer-py &mdash; write cover from a script</figcaption>
+      <pre><code><span class="k">from</span> genlayer_py <span class="k">import</span> create_client
+<span class="k">from</span> genlayer_py.chains <span class="k">import</span> studionet
+
+client = create_client(chain=studionet, account=account)
+client.write_contract(
+    address=<span class="s">"0xBF326FA29B839cF95d3c9d0895b7A852031C3822"</span>,
+    function_name=<span class="s">"buy_policy"</span>,
+    args=[trigger, criteria, sources, payout_wei, expires_ts],
+    value=premium_wei,
+)</code></pre>
+    </figure>
+
+    <p>
+      Sixteen methods, nine of them views. <code>fund_pool</code> and
+      <code>withdraw_pool</code> are the underwriter's side;
+      <code>quote</code> tells you before you pay whether the pool can back a
+      given payout; <code>buy_policy</code> reserves it; <code>settle_policy</code>
+      is the call anybody can make. Clone it, point the trigger at your own
+      measurement, and the adjudication above is already done for you.
+    </p>
+    <p class="fineprint">
+      Source, tests and the deployment notes are in the repository, including
+      the integration test that writes cover on StudioNet, waits for it to
+      expire, and asserts on what the validators actually decided.
+    </p>
   </section>
 
   <section class="wrap products">

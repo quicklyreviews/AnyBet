@@ -1388,3 +1388,81 @@ body.home .band .solvency > div { background: var(--ground); }
   .tabs { scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
 }
+
+/* --- the shapes grid, and code for developers ------------------------- */
+
+/* One card is built and three are not, and the difference has to be visible
+   at a glance - a landing page that lets four equal cards imply four shipped
+   products is lying by layout. */
+/* Two by two, not three and an orphan: four cards where one is marked built
+   and three are not should read as one comparison, not a ragged row. */
+.shapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  gap: 12px;
+  margin: 26px 0 22px;
+}
+.shape {
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.shape.built { border-color: var(--ink); }
+.shape h3 { margin: 8px 0 7px; font-size: 18px; }
+.shape p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+.shape-tag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.shape.built .shape-tag { color: var(--ground); background: var(--ink); border-color: var(--ink); }
+
+figure.code {
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+figure.code figcaption {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sunk);
+}
+/* Code is the one thing on this page allowed its own scrollbar: wrapping a
+   line of Python moves it somewhere it does not belong. */
+figure.code pre {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+figure.code code { font-size: inherit; }
+figure.code .c { color: var(--muted); }
+figure.code .k { color: var(--accent); font-weight: 600; }
+figure.code .s { color: var(--yes); }
+
+.build-h3 {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin: 44px 0 10px;
+}
+
+@media (max-width: 620px) {
+  figure.code pre { font-size: 11.5px; padding: 13px; }
+}
