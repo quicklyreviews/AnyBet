@@ -75,8 +75,17 @@ function walk(dir, base = dir) {
 
 // --- run ---
 
-rmSync(OUT, { recursive: true, force: true });
-mkdirSync(OUT, { recursive: true });
+// Everything except .git: the export directory is a working clone of the
+// submission repository, and blowing the whole thing away took its history
+// with it the first time this ran twice.
+if (existsSync(OUT)) {
+  for (const entry of readdirSync(OUT)) {
+    if (entry === '.git') continue;
+    rmSync(join(OUT, entry), { recursive: true, force: true });
+  }
+} else {
+  mkdirSync(OUT, { recursive: true });
+}
 
 let cutTotal = 0;
 for (const rel of KEEP) {
