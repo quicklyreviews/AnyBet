@@ -1345,3 +1345,46 @@ body.desk .hero .hero-lede {
   font-variant-numeric: tabular-nums;
 }
 body.home .band .solvency > div { background: var(--ground); }
+
+/* --- narrow screens --------------------------------------------------- */
+
+/* A long verdict badge was refusing to shrink next to a heading that wanted
+   the same row, so the card grew past the viewport and the whole page scrolled
+   sideways. The badge keeps its own line instead. */
+@media (max-width: 620px) {
+  .hm-head { flex-wrap: wrap; }
+  .hm-head h3 { flex: 1 1 100%; }
+  .hm-head .badge { white-space: normal; }
+  .home-market .hm-foot { flex-wrap: wrap; row-gap: 6px; }
+}
+
+/* The netbar is sticky, so on a phone every extra row is screen the page never
+   gets back. It falls to what it is actually for - which network, and the
+   contract this page is about.
+   Only on the landing pages: on the two desks .netbar-right holds Connect
+   wallet and the account, and a phone needs those more than a desktop does. */
+@media (max-width: 620px) {
+  .netbar-inner { gap: 6px 14px; padding-top: 9px; padding-bottom: 9px; }
+  .net-contract .label { display: none; }
+  body.home .netbar .netbar-right { display: none; }
+  /* The second contract chip, whichever page's it is. Each landing leads with
+     its own, so keeping the first is right on both. */
+  body.home .netbar .net-contract ~ .net-contract { display: none; }
+}
+
+/* Wide letter-spacing on a line that has to wrap reads as two broken lines
+   rather than one label. */
+@media (max-width: 620px) {
+  .eyebrow { letter-spacing: .04em; }
+  .hero h1 { font-size: clamp(30px, 8.5vw, 40px); }
+}
+
+/* Four tabs at 15px of side padding overflow a phone by about a tab's width,
+   and a tab strip that scrolls with nothing to say it does looks like three
+   tabs. Tightened until all four fit; the strip still scrolls if a label grows. */
+@media (max-width: 620px) {
+  .tab { padding-left: 6px; padding-right: 6px; font-size: 12.5px; letter-spacing: -.005em; }
+  .tab .count { margin-left: 4px; }
+  .tabs { scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+}
