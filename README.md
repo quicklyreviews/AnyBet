@@ -81,6 +81,37 @@ small lie about itself.
 **`app.html` is the app.** Markets are readable straight away; playing needs a
 wallet.
 
+### The rate limit, and the error it wears as a disguise
+
+StudioNet rate-limits: reads get 300 a minute, transactions far fewer. When it
+refuses, it answers **429 without CORS headers**, so the browser cannot read the
+response and reports it as:
+
+```
+Access to fetch at 'https://studio.genlayer.com/api' from origin
+'https://anybet.onrender.com' has been blocked by CORS policy
+```
+
+That message sends you hunting for a CORS bug that does not exist. CORS is
+configured correctly — the server reflects the origin back on every successful
+call. The give-away is in those same headers: `X-RateLimit-Limit`,
+`X-RateLimit-Remaining`, `Retry-After`. Curl the endpoint with an `Origin`
+header and it all shows up.
+
+Naive retrying made it considerably worse: every failure fired three more
+requests into a bucket that was already empty. Calls are now serialised onto one
+lane with a floor on the gap between them, a 429 or an opaque network failure
+triggers a real backoff honouring `Retry-After`, polling runs once a minute
+rather than every twenty seconds and stops entirely while the tab is hidden or
+the node is refusing, and the page says so plainly instead of failing silently:
+
+> StudioNet is rate limiting this page. Pausing for 20s — the numbers below may
+> be a moment behind.
+
+One read per cycle also went away. "Which policies are mine" was being asked of
+the contract via `get_policies_of`, which is the more principled source, but it
+cost a whole request for a value the policy list already contained.
+
 ### Publishing it
 
 There is no backend to deploy, which is the whole story. GenPredict needs a

@@ -746,6 +746,7 @@ function tickCountdowns() {
  */
 async function pollChain() {
   if (busy || document.hidden) return;
+  // The read path backs off on its own; this just avoids queueing behind it.
   let fresh;
   try {
     const raw = await read('get_all_markets');
@@ -1034,7 +1035,9 @@ async function main() {
   }
 
   setInterval(tickCountdowns, 1000);
-  setInterval(pollChain, 20000);
+  // Once a minute, not every twenty seconds: the node rate-limits, and a page
+  // left open was spending that budget on numbers nobody was reading.
+  setInterval(pollChain, 60000);
 }
 
 function buildTemplateChips() {

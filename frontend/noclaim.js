@@ -10,7 +10,7 @@
 import {
   $, signer, isSignedIn, initWallet, connectWallet, signOut, ensureStudioChain,
   readChainId, chainLabel, makeContract, toast, withBusy, cleanError,
-  gen, toWei, shorten, escapeHtml, setText, rpc, isBusy, EXPLORER, ONE_GEN,
+  gen, toWei, shorten, escapeHtml, setText, rpc, isBusy, isRateLimited, EXPLORER, ONE_GEN,
 } from './wallet.js';
 import { markSvg, faviconHref } from './brand.js';
 import { COVER_TEMPLATES } from './cover-templates.js';
@@ -71,6 +71,12 @@ async function refreshAccount() {
   } catch { /* as above */ }
 }
 
+/** Skips the whole cycle while the node is refusing us, so a rate limit does
+ *  not become a queue of requests that arrive after it lifts. */
+function shouldPoll() {
+  return !isBusy() && !document.hidden && !isRateLimited();
+}
+
 // --- the pool --------------------------------------------------------
 
 async function loadPool() {
@@ -125,18 +131,13 @@ async function loadPolicies() {
   const raw = await contract.read('get_all_policies');
   policies = sortForDisplay(Object.values(typeof raw === 'string' ? JSON.parse(raw) : (raw || {})));
 
-  // Asked of the contract rather than filtered here: get_policies_of is the
-  // contract's own answer to "what am I covered for", and using it means the
-  // page and the chain cannot disagree about whose policy is whose.
-  mine = [];
-  if (signer.address) {
-    try {
-      const own = await contract.read('get_policies_of', [signer.address]);
-      mine = JSON.parse(typeof own === 'string' ? own : '[]');
-    } catch (e) {
-      console.error('own policies', e);
-    }
-  }
+  // Derived from the list already in hand rather than asked separately.
+  // get_policies_of is the more principled source - it is the contract's own
+  // answer to "which are mine" - but it costs an extra request every cycle for
+  // a value the reply above already contains, and the node's rate limit is the
+  // binding constraint here. `holder` is the same field the view filters on.
+  const me = signer.address ? signer.address.toLowerCase() : null;
+  mine = me ? policies.filter((p) => p.holder === me) : [];
   renderPolicies();
 }
 
@@ -526,8 +527,10 @@ async function main() {
   await reloadAll();
 
   // Countdowns are local; the chain is re-read only occasionally.
+  // Countdowns are local and free. The chain is asked once a minute, and not
+  // at all while the tab is hidden or the node is refusing.
   setInterval(() => { if (!isBusy()) renderPolicies(); }, 1000);
-  setInterval(() => { if (!isBusy() && !document.hidden) reloadAll().catch(() => {}); }, 30000);
+  setInterval(() => { if (shouldPoll()) reloadAll().catch(() => {}); }, 60000);
 }
 
 main();

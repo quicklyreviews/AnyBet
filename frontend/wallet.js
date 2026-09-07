@@ -115,22 +115,83 @@ export async function withBusy(label, fn) {
   }
 }
 
-/** Retries, because DNS to studio.genlayer.com is intermittently flaky and one
- *  dropped lookup would otherwise leave a field reading "-" for good. */
-export async function rpc(method, params, tries = 3) {
+/**
+ * Every call to StudioNet goes through here, one at a time.
+ *
+ * The node rate-limits: reads get 300 a minute, writes far fewer. When it
+ * refuses, it answers 429 *without* CORS headers, so the browser cannot read
+ * the response and reports "blocked by CORS policy" instead - which sends you
+ * hunting for a CORS bug that does not exist. The give-away is
+ * `X-RateLimit-Remaining` in the headers of every successful reply.
+ *
+ * Retrying naively made this worse: each failure fired three more requests into
+ * a bucket that was already empty. So calls are serialised, spaced, and backed
+ * off when refused, and the page is told to stop asking rather than to ask
+ * harder.
+ */
+let queue = Promise.resolve();
+let backoffUntil = 0;
+let rateLimitNotified = 0;
+
+const MIN_GAP_MS = 120;     // never fire two calls back to back
+let lastCallAt = 0;
+
+export const isRateLimited = () => Date.now() < backoffUntil;
+
+function looksRateLimited(e) {
+  const s = String(e?.message || e).toLowerCase();
+  return s.includes('rate limit') || s.includes('429')
+    // A 429 with no CORS headers reaches the browser as an opaque network
+    // failure, so this shape has to count as rate limiting too.
+    || s.includes('failed to fetch') || s.includes('load failed');
+}
+
+function noteRateLimit(seconds = 20) {
+  backoffUntil = Math.max(backoffUntil, Date.now() + seconds * 1000);
+  // Say it once per pause rather than once per call.
+  if (Date.now() - rateLimitNotified > 30000) {
+    rateLimitNotified = Date.now();
+    toast(`StudioNet is rate limiting this page. Pausing for ${seconds}s - the numbers below may be a moment behind.`, 'info');
+  }
+}
+
+/** Serialises everything onto one lane, with a floor on the gap between calls. */
+function enqueue(fn) {
+  const run = queue.then(async () => {
+    if (isRateLimited()) {
+      await new Promise((r) => setTimeout(r, backoffUntil - Date.now()));
+    }
+    const gap = MIN_GAP_MS - (Date.now() - lastCallAt);
+    if (gap > 0) await new Promise((r) => setTimeout(r, gap));
+    lastCallAt = Date.now();
+    return fn();
+  });
+  // Keep the lane open even when one call throws.
+  queue = run.catch(() => {});
+  return run;
+}
+
+export async function rpc(method, params, tries = 2) {
   let last;
   for (let i = 0; i < tries; i++) {
     try {
-      const res = await fetch(RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+      return await enqueue(async () => {
+        const res = await fetch(RPC, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+        });
+        if (res.status === 429) {
+          noteRateLimit(Number(res.headers.get('Retry-After')) || 20);
+          throw new Error('rate limited');
+        }
+        const body = await res.json();
+        if (body.error) throw new Error(body.error.message || JSON.stringify(body.error));
+        return body.result;
       });
-      const body = await res.json();
-      if (body.error) throw new Error(body.error.message || JSON.stringify(body.error));
-      return body.result;
     } catch (e) {
       last = e;
+      if (looksRateLimited(e)) { noteRateLimit(); break; }
       await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
     }
   }
@@ -318,13 +379,16 @@ export function makeContract(address) {
   return {
     address,
 
-    async read(functionName, args = [], tries = 3) {
+    async read(functionName, args = [], tries = 2) {
       let last;
       for (let i = 0; i < tries; i++) {
         try {
-          return await (readClient || signer.client).readContract({ address, functionName, args });
+          return await enqueue(() =>
+            (readClient || signer.client).readContract({ address, functionName, args }));
         } catch (e) {
           last = e;
+          // Backing off beats retrying into an empty bucket.
+          if (looksRateLimited(e)) { noteRateLimit(); break; }
           await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
         }
       }
@@ -340,7 +404,19 @@ export function makeContract(address) {
       if (!ok) {
         throw new Error('Your wallet is not on GenLayer StudioNet (chain 61999). Switch network and try again.');
       }
-      const hash = await signer.client.writeContract({ address, functionName, args, value });
+      let hash;
+      try {
+        hash = await enqueue(() =>
+          signer.client.writeContract({ address, functionName, args, value }));
+      } catch (e) {
+        // Writes have their own, much smaller budget. Say what actually
+        // happened rather than letting a CORS-shaped error stand.
+        if (looksRateLimited(e)) {
+          noteRateLimit(30);
+          throw new Error('StudioNet is rate limiting transactions right now. Wait about half a minute and try again.');
+        }
+        throw e;
+      }
       await signer.client.waitForTransactionReceipt({
         hash, status: TransactionStatus.ACCEPTED, interval: 3000, retries: 60,
       });
