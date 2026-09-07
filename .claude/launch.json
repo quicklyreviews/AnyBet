@@ -4,8 +4,26 @@
     {
       "name": "anybet-frontend",
       "runtimeExecutable": "C:\\Users\\1phut\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
-      "runtimeArgs": ["-m", "http.server", "5174", "--directory", "frontend"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5174",
+        "--directory",
+        "frontend"
+      ],
       "port": 5174
+    },
+    {
+      "name": "noclaim-export",
+      "runtimeExecutable": "C:\\Users\\1phut\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5175",
+        "--directory",
+        "../noclaim-export/frontend"
+      ],
+      "port": 5175
     }
   ]
 }

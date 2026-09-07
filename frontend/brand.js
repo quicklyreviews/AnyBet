@@ -1,5 +1,5 @@
 /**
- * The AnyBet mark.
+ * The mark, shared by both desks.
  *
  * Two blades sweeping up to a point with a shard held between them - it reads
  * as an "A", which is why it suits the name. Drawn as inline SVG rather than
@@ -20,10 +20,14 @@ const MARK_PATHS = `
   <path d="M50 47 60.5 69 50 77.5 39.5 69Z"/>
 `;
 
-/** Inline mark for the page itself. */
+/** Inline mark for the page itself.
+ *
+ *  Decorative rather than labelled: it always sits next to the wordmark, so a
+ *  screen reader announcing the name twice is noise - and it carried the wrong
+ *  name on the cover desk for as long as the label was hard-coded. */
 export function markSvg(size = 30) {
   return `<svg class="mark" width="${size}" height="${size}" viewBox="0 0 100 100"
-    role="img" aria-label="AnyBet" fill="currentColor">${MARK_PATHS}</svg>`;
+    aria-hidden="true" focusable="false" fill="currentColor">${MARK_PATHS}</svg>`;
 }
 
 /** Same geometry as a favicon. Data URI, so there is no second request and no

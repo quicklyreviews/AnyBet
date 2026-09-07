@@ -20,7 +20,7 @@ export const EXPLORER = 'https://genlayer-explorer.vercel.app';
 export const CHAIN_ID_HEX = '0xf22f'; // 61999
 export const ONE_GEN = 10n ** 18n;
 
-const MODE_STORAGE = 'anybet_signer_mode';
+const MODE_STORAGE = 'gl_signer_mode';
 
 // Chains a wallet is likely to be sitting on, so a wrong one can be named
 // rather than shown as a bare hex id nobody reads.
@@ -287,8 +287,8 @@ function attachWallet(address, provider) {
 }
 
 function bindProviderEvents(provider) {
-  if (provider._anybetBound) return;
-  provider._anybetBound = true;
+  if (provider._glBound) return;
+  provider._glBound = true;
 
   provider.on?.('accountsChanged', async (accs) => {
     if (signer.mode !== 'wallet') return;
