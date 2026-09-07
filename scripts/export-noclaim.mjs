@@ -102,12 +102,16 @@ for (const rel of walk(overlayDir)) {
   console.log(`  ${rel}`);
 }
 
-// Nothing may reference the sibling project by name once the markers are cut.
-// A stray link is the one thing a reviewer would notice immediately.
+// Nothing may mention the sibling project once the markers are cut - not in a
+// link, not in a filename, not in a comment. The first version of this check
+// looked only for anybet.html and app.html and passed a tree whose stylesheet
+// opened with the other project's name on line one, which is exactly the kind
+// of thing a reviewer notices first. So it looks for the bare word now.
 const leaks = [];
 for (const rel of walk(OUT)) {
+  if (rel.startsWith('.git/')) continue;
   const text = readFileSync(join(OUT, rel), 'utf8');
-  for (const bad of [/anybet\.html/i, /\bapp\.html/i, /any_bet/i, /anybet-home/i]) {
+  for (const bad of [/anybet/i, /any_bet/i, /\bapp\.html/i]) {
     if (bad.test(text)) leaks.push(`${rel}: ${bad}`);
   }
 }
