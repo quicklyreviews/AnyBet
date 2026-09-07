@@ -4,7 +4,7 @@
  * No build step: the import map in app.html pulls genlayer-js from esm.sh.
  *
  * The wallet, the network check, the request queue and the small formatting
- * helpers live in wallet.js, shared with the cover desk. They used to be copied
+ * helpers live in wallet.js, shared rather than owned here. They used to be copied
  * here, and the copy drifted: the rate-limit backoff added after StudioNet
  * started refusing bursts went into one file and not the other, so this page
  * kept hammering a node that had stopped answering and reported it as CORS.

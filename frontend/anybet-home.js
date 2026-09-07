@@ -17,7 +17,9 @@ import { markSvg, faviconHref } from './brand.js';
 const RPC = 'https://studio.genlayer.com/api';
 const EXPLORER = 'https://genlayer-explorer.vercel.app';
 const CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
+// noclaim:start
 const COVER_CONTRACT = '0xBF326FA29B839cF95d3c9d0895b7A852031C3822';
+// noclaim:end
 const ONE_GEN = 10n ** 18n;
 
 const $ = (id) => document.getElementById(id);
@@ -144,9 +146,11 @@ async function main() {
   $('contract-address').textContent = shorten(CONTRACT);
   $('net-contract-bet').href = `${EXPLORER}/address/${CONTRACT}`;
   $('net-contract-bet').title = CONTRACT;
+  // noclaim:start
   $('cover-address').textContent = shorten(COVER_CONTRACT);
   $('net-contract-cover').href = `${EXPLORER}/address/${COVER_CONTRACT}`;
   $('net-contract-cover').title = COVER_CONTRACT;
+  // noclaim:end
   $('explorer-link').href = `${EXPLORER}/address/${CONTRACT}`;
 
   // Independently, so a stumble on one does not blank the other.

@@ -24,6 +24,18 @@
         "../noclaim-export/frontend"
       ],
       "port": 5175
+    },
+    {
+      "name": "anybet-export",
+      "runtimeExecutable": "C:Users\u0001phutAppDataLocalProgramsPythonPython313python.exe",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5176",
+        "--directory",
+        "../anybet-export/frontend"
+      ],
+      "port": 5176
     }
   ]
 }
