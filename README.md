@@ -43,14 +43,21 @@ mean anything — and lets `reasoning` vary freely.
 ## Project layout
 
 ```
-contracts/any_bet.py                        the Intelligent Contract (Python, GenVM)
-frontend/index.html + home.js               the home page - live figures, read-only
-frontend/app.html + app.js                  the app - no build step, open and use
-frontend/templates.js                       the worked examples, grouped by reach
+contracts/no_claim.py                       parametric cover - the contract this entry is about
+contracts/any_bet.py                        the parimutuel market it grew out of
+frontend/index.html + home.js               the home page - NoClaim, live figures, read-only
+frontend/noclaim.html + noclaim.js          the cover desk - buy, hold, settle, underwrite
+frontend/anybet.html + anybet-home.js       the AnyBet overview
+frontend/app.html + app.js                  the AnyBet app - no build step, open and use
+frontend/wallet.js                          wallet, network check and request queue, shared by both desks
+frontend/cover-templates.js                 parametric cover built from live data
+frontend/templates.js                       the worked market questions, grouped by reach
 frontend/brand.js                           the mark, as SVG geometry shared by header and favicon
 HUONG-DAN.md                                Vietnamese user guide
 tests/direct/conftest.py                    mock `genlayer` module, no GenVM needed
-tests/direct/test_any_bet.py                fast unit tests (13)
+tests/direct/test_no_claim.py               fast unit tests for the cover contract (12)
+tests/direct/test_any_bet.py                fast unit tests for the market contract (18)
+tests/integration/test_noclaim_studionet.py cover written, settled and refunded on a real network
 tests/integration/test_deploy_studionet.py  deploy + state on a real network (3)
 tests/integration/test_resolution_consensus.py  the one that matters (1, ~6.5 min)
 tests/integration/test_book_studionet.py    the book, read back through GenVM's codec
@@ -68,18 +75,24 @@ python -m http.server 5174 --directory frontend
 
 Then open <http://localhost:5174>. There is no build step.
 
-Two pages. **`index.html` is the home page** — read-only and wallet-free, because
-a landing page that opens a wallet prompt before saying what the product is has
-the order backwards. Its figures and its market cards are read off the chain on
-load rather than written into the HTML: a landing page quoting numbers that were
-true the day somebody typed them is a brochure, and this one is either current or
-honestly blank. Its markets heading follows what is actually below it —
-*Open right now* when there are open markets, *Recently settled* when there are
-not, because promising the first while showing the second is the page telling a
-small lie about itself.
+Four pages, two of them apps.
 
-**`app.html` is the app.** Markets are readable straight away; playing needs a
-wallet.
+**`index.html` is the home page, and it is NoClaim's** — parametric cover is the
+part of this that works without a counterparty, so it takes the front door.
+Like the AnyBet overview at `anybet.html` it is read-only and wallet-free: a
+landing page that opens a wallet prompt before saying what the product is has
+the order backwards. Its figures and its policy cards are read off the chain on
+load rather than written into the HTML, so it is either current or honestly
+blank. Its heading follows what is actually below it — *Cover in force right
+now* when some is, *Recently written* when none is — because promising the first
+while showing the second is the page telling a small lie about itself.
+
+**`noclaim.html` is the cover desk** and **`app.html` is the market app.** Both
+are readable straight away; acting needs a wallet. They share one shell: a
+sticky bar naming the chain, the chain id, the contract and the connected
+account, which turns amber and offers a switch the moment the wallet is
+somewhere else; and a "How to take part" checklist whose ticks come from real
+state, so it answers *which step am I on* rather than listing steps.
 
 ### The rate limit, and the error it wears as a disguise
 

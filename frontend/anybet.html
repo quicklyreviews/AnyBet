@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyBet - a prediction market with no topic list</title>
+<meta name="description" content="Ask any question in plain English, say how it should be judged, and GenLayer validators settle it from live evidence.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="icon" id="favicon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "genlayer-js": "https://esm.sh/genlayer-js@1.1.8",
+    "genlayer-js/chains": "https://esm.sh/genlayer-js@1.1.8/chains"
+  }
+}
+</script>
+</head>
+<body class="home">
+
+<!-- The same bar the two apps carry. This page signs nothing, so it shows no
+     account - but it names the network and both contracts, because arriving
+     here and arriving at the app should not tell you different things about
+     where this runs. -->
+<div class="netbar" id="netbar">
+  <div class="wrap netbar-inner">
+    <span class="net-state">
+      <span class="dot"></span>
+      <strong>GenLayer StudioNet</strong>
+      <span class="net-id">chain 61999</span>
+    </span>
+    <a class="net-contract" id="net-contract-bet" href="#" target="_blank" rel="noopener" title="The AnyBet contract on the explorer">
+      <span class="label">anybet</span>
+      <code id="contract-address">-</code>
+    </a>
+    <a class="net-contract" id="net-contract-cover" href="#" target="_blank" rel="noopener" title="The NoClaim contract on the explorer">
+      <span class="label">noclaim</span>
+      <code id="cover-address">-</code>
+    </a>
+    <div class="netbar-right">
+      <a class="link" href="https://genlayer.com" target="_blank" rel="noopener">what is GenLayer?</a>
+    </div>
+  </div>
+</div>
+
+<header class="home-nav">
+  <div class="wrap home-nav-inner">
+    <a class="lockup" href="anybet.html">
+      <span class="mark-slot" id="mark-slot"></span>
+      <span class="wordmark">AnyBet</span>
+    </a>
+    <nav>
+      <a class="btn-link ghost" href="index.html">NoClaim</a>
+      <a class="btn-link primary" href="app.html">Open the app</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero wrap">
+    <p class="eyebrow">Agent Tank &middot; Prediction Markets &amp; Real-World Settlement</p>
+    <h1>A prediction market<br>with no topic list.</h1>
+    <p class="hero-lede">
+      Write a question in plain English. Say how it should be judged and where to
+      look. When it closes, independent validators fetch the evidence themselves
+      and have to agree before a single coin moves.
+    </p>
+    <div class="hero-actions">
+      <a class="btn-link primary" href="app.html">Open the app</a>
+      <a class="btn-link ghost" href="#how">How it settles</a>
+    </div>
+    <dl class="hero-stats" id="hero-stats">
+      <div><dt>Markets opened</dt><dd id="stat-markets">&mdash;</dd></div>
+      <div><dt>Bets placed</dt><dd id="stat-bets">&mdash;</dd></div>
+      <div><dt>Staked to date</dt><dd id="stat-volume">&mdash;</dd></div>
+    </dl>
+    <p class="hero-note">Live from the contract on StudioNet, not a screenshot.</p>
+  </section>
+
+  <!-- NoClaim was a footnote here for too long. It is the half of this that
+       does not need a counterparty, which is the more interesting half. -->
+  <section class="wrap products">
+    <h2>Two contracts, one engine</h2>
+    <p class="lede">
+      Both settle the same way &mdash; validators fetch the evidence and have to
+      agree &mdash; but they answer different questions, and one of them works
+      where the other cannot.
+    </p>
+    <div class="product-grid">
+      <a class="product" href="app.html">
+        <span class="eyebrow">AnyBet</span>
+        <h3>A market, if someone takes the other side</h3>
+        <p>
+          Parimutuel pools. You are paid by the people who were wrong, so a
+          question nobody disagrees with pays nothing and refunds everybody.
+        </p>
+        <span class="product-go">Open the app</span>
+      </a>
+      <a class="product" href="index.html">
+        <span class="eyebrow">NoClaim</span>
+        <h3>Cover, whether or not anyone takes it</h3>
+        <p>
+          A pool underwrites instead. Name the event, pay a premium, and the
+          payout is reserved the moment the policy is written &mdash; so cover
+          exists for the risks no one wants to bet against. If the evidence
+          cannot settle it, the premium comes back in full.
+        </p>
+        <span class="product-go">See NoClaim</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <h2>Resolution cost is what keeps markets small</h2>
+      <div class="two-col">
+        <p>
+          A Polymarket-scale market needs an operator to define, monitor and
+          settle every question, so only questions worth that overhead get to
+          exist. On GenLayer, <em>will BTC be up in five minutes</em> is already
+          covered several times over.
+        </p>
+        <p>
+          What is unserved is everything below that line: will my flight be
+          delayed, did the council approve the permit, will it rain on the
+          wedding, the bet two friends want settled without having to trust each
+          other.
+        </p>
+      </div>
+      <p class="pull">
+        The blocker was never the money. It is that settling an arbitrary
+        question means reading evidence and exercising judgment &mdash; exactly
+        what a deterministic chain cannot do, and what an oracle can only do by
+        being trusted.
+      </p>
+    </div>
+  </section>
+
+  <section class="wrap" id="how">
+    <h2>Judgment as a consensus primitive</h2>
+    <p class="lede">
+      A market carries its own criteria and its own sources. At close, every
+      validator independently fetches those sources over the real internet and
+      runs the same resolution prompt &mdash; and the transaction only lands if
+      their verdicts match. The marginal cost of one more market falls to about
+      the cost of one more transaction, which is what makes long-tail markets
+      possible at all.
+    </p>
+
+    <div class="verdicts">
+      <div class="verdict-card v-yes">
+        <p class="name">YES</p>
+        <p>The evidence settles it. The pool pays the YES side, minus the fee.</p>
+      </div>
+      <div class="verdict-card v-no">
+        <p class="name">NO</p>
+        <p>The evidence settles it the other way. The pool pays the NO side.</p>
+      </div>
+      <div class="verdict-card v-unknown">
+        <p class="name">UNKNOWN</p>
+        <p>Absent, partial or ambiguous evidence. The market voids and every stake is refunded in full, no fee taken.</p>
+      </div>
+    </div>
+
+    <p class="under-verdicts">
+      The third one is the design, not an error path. The prompt tells the
+      resolver to reach for it whenever the evidence is thin, on the grounds that
+      <strong>a wrong UNKNOWN only delays a market, while a wrong YES pays the
+      wrong person.</strong>
+    </p>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="markets-heading">Markets</h2>
+        <a class="btn-link ghost" href="app.html">See all markets</a>
+      </div>
+      <div id="home-markets" class="home-markets">
+        <p class="empty">Reading the contract&hellip;</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>The run we are proudest of is the one that failed</h2>
+    <p class="lede">
+      The first live resolution came back UNKNOWN. Binance geo-blocks GenLayer's
+      validator nodes &mdash; and does it with <strong>HTTP 200 and an error
+      body</strong>, so code trusting the status line would have parsed a price
+      out of an error page.
+    </p>
+    <figure class="exhibit void">
+      <figcaption>
+        <span>First live resolution &middot; source: Binance ticker</span>
+        <span class="tag">Voided &mdash; refunded</span>
+      </figcaption>
+      <blockquote>
+        The Binance API returned an error indicating the service is unavailable
+        from a restricted location, so no price field was provided in the source
+        data to evaluate against the resolution criteria.
+      </blockquote>
+    </figure>
+    <p>
+      The validators agreed on UNKNOWN, the market voided, and every stake stayed
+      refundable in full. That is the safety argument demonstrated in production
+      rather than asserted in a README: when the evidence is not there, the
+      system refuses to decide instead of paying the wrong side.
+    </p>
+  </section>
+
+  <section class="cta">
+    <div class="wrap">
+      <h2>Ask it something.</h2>
+      <p>
+        Connect any EVM wallet, take some test GEN, and open a market about
+        anything at all. StudioNet is a test network &mdash; none of it costs
+        real money.
+      </p>
+      <a class="btn-link primary" href="app.html">Open the app</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>
+    Intelligent Contract <code id="contract-address">&mdash;</code> running in
+    GenVM on GenLayer StudioNet, chain 61999.
+    <a id="explorer-link" href="#" target="_blank" rel="noopener">View on the explorer</a>
+  </p>
+  <p class="fineprint">
+    Settled by GenLayer's Optimistic Democracy: validators fetch the sources
+    independently, run the same prompt, and the transaction only lands if their
+    verdicts match. No oracle, no admin key. StudioNet is a test network; the GEN
+    on it is not worth anything.
+  </p>
+</footer>
+
+<script type="module" src="anybet-home.js"></script>
+</body>
+</html>

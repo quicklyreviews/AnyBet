@@ -1290,3 +1290,58 @@ body.desk .hero .hero-lede {
 /* The netbar is the one thing that stays. Two sticky bars at top:0 stack on
    top of each other, and the network is the one that has to win. */
 .home-nav { position: static; }
+
+/* --- the NoClaim landing --------------------------------------------- */
+
+/* The left edge carries the verdict, so a glance down the list reads as a
+   history of decisions rather than a list of rows. */
+.home-market.live { border-left-color: var(--accent); }
+.home-market.due { border-left-color: var(--unknown); }
+.home-market.paid { border-left-color: var(--no); }
+.home-market.refunded { border-left-color: var(--unknown); }
+.home-market.expired { border-left-color: var(--yes); }
+.badge.expired { color: var(--yes); border-color: var(--yes); }
+
+.hm-reason {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+  max-width: 76ch;
+}
+
+/* The claim and the numbers behind it, side by side. Solvency asserted in
+   prose is a promise; solvency next to the figures is an audit. */
+.solvency {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  margin: 28px 0 14px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.solvency > div {
+  background: var(--surface);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.solvency dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+/* A label that wraps to two lines must not push its figure out of line with
+   the others; the numbers are meant to be read across. */
+.solvency dd {
+  margin: auto 0 0;
+  font-family: var(--display);
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+body.home .band .solvency > div { background: var(--ground); }
