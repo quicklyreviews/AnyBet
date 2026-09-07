@@ -21,6 +21,31 @@
 </head>
 <body class="home">
 
+<!-- The same bar the two apps carry. This page signs nothing, so it shows no
+     account - but it names the network and both contracts, because arriving
+     here and arriving at the app should not tell you different things about
+     where this runs. -->
+<div class="netbar" id="netbar">
+  <div class="wrap netbar-inner">
+    <span class="net-state">
+      <span class="dot"></span>
+      <strong>GenLayer StudioNet</strong>
+      <span class="net-id">chain 61999</span>
+    </span>
+    <a class="net-contract" id="net-contract-bet" href="#" target="_blank" rel="noopener" title="The AnyBet contract on the explorer">
+      <span class="label">anybet</span>
+      <code id="contract-address">-</code>
+    </a>
+    <a class="net-contract" id="net-contract-cover" href="#" target="_blank" rel="noopener" title="The NoClaim contract on the explorer">
+      <span class="label">noclaim</span>
+      <code id="cover-address">-</code>
+    </a>
+    <div class="netbar-right">
+      <a class="link" href="https://genlayer.com" target="_blank" rel="noopener">what is GenLayer?</a>
+    </div>
+  </div>
+</div>
+
 <header class="home-nav">
   <div class="wrap home-nav-inner">
     <a class="lockup" href="index.html">
@@ -28,12 +53,6 @@
       <span class="wordmark">AnyBet</span>
     </a>
     <nav>
-      <a class="chain-badge" href="https://genlayer.com" target="_blank" rel="noopener">
-        <span class="dot ok"></span>
-        <span>Built on <strong>GenLayer</strong></span>
-        <span class="sep">/</span>
-        <span>StudioNet 61999</span>
-      </a>
       <a class="btn-link ghost" href="noclaim.html">NoClaim</a>
       <a class="btn-link primary" href="app.html">Open the app</a>
     </nav>
@@ -60,6 +79,39 @@
       <div><dt>Staked to date</dt><dd id="stat-volume">&mdash;</dd></div>
     </dl>
     <p class="hero-note">Live from the contract on StudioNet, not a screenshot.</p>
+  </section>
+
+  <!-- NoClaim was a footnote here for too long. It is the half of this that
+       does not need a counterparty, which is the more interesting half. -->
+  <section class="wrap products">
+    <h2>Two contracts, one engine</h2>
+    <p class="lede">
+      Both settle the same way &mdash; validators fetch the evidence and have to
+      agree &mdash; but they answer different questions, and one of them works
+      where the other cannot.
+    </p>
+    <div class="product-grid">
+      <a class="product" href="app.html">
+        <span class="eyebrow">AnyBet</span>
+        <h3>A market, if someone takes the other side</h3>
+        <p>
+          Parimutuel pools. You are paid by the people who were wrong, so a
+          question nobody disagrees with pays nothing and refunds everybody.
+        </p>
+        <span class="product-go">Open the app</span>
+      </a>
+      <a class="product" href="noclaim.html">
+        <span class="eyebrow">NoClaim</span>
+        <h3>Cover, whether or not anyone takes it</h3>
+        <p>
+          A pool underwrites instead. Name the event, pay a premium, and the
+          payout is reserved the moment the policy is written &mdash; so cover
+          exists for the risks no one wants to bet against. If the evidence
+          cannot settle it, the premium comes back in full.
+        </p>
+        <span class="product-go">Open the cover desk</span>
+      </a>
+    </div>
   </section>
 
   <section class="band">

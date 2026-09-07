@@ -1251,3 +1251,42 @@ body.desk .hero .hero-lede {
 .start.complete .steps-live li { padding: 12px 14px; }
 .start.complete .steps-live h3 { margin: 0; }
 .start.complete .start-progress { color: var(--yes); }
+
+/* Two contracts, one engine. Equal width on purpose: the cover desk is the
+   half that works without a counterparty, and a narrower card would say the
+   opposite of what the section is for. */
+.products { padding: 56px 0 8px; }
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.product {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 26px 24px 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.product:hover { border-color: var(--ink); transform: translateY(-2px); }
+.product h3 { margin: 0; font-size: 21px; line-height: 1.25; }
+.product p { margin: 0; color: var(--muted); line-height: 1.55; }
+.product-go {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.product-go::after { content: " \2192"; }
+.home .netbar .net-contract + .net-contract { margin-left: 4px; }
+
+/* The netbar is the one thing that stays. Two sticky bars at top:0 stack on
+   top of each other, and the network is the one that has to win. */
+.home-nav { position: static; }

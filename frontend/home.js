@@ -17,10 +17,13 @@ import { markSvg, faviconHref } from './brand.js';
 const RPC = 'https://studio.genlayer.com/api';
 const EXPLORER = 'https://genlayer-explorer.vercel.app';
 const CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
+const COVER_CONTRACT = '0xBF326FA29B839cF95d3c9d0895b7A852031C3822';
 const ONE_GEN = 10n ** 18n;
 
 const $ = (id) => document.getElementById(id);
 const client = createClient({ chain: studionet, endpoint: RPC });
+
+const shorten = (addr) => (addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '-');
 
 function gen(wei, dp = 2) {
   return (Number(typeof wei === 'bigint' ? wei : BigInt(wei || 0)) / Number(ONE_GEN)).toFixed(dp);
@@ -138,7 +141,12 @@ async function loadMarkets() {
 async function main() {
   $('mark-slot').innerHTML = markSvg(28);
   $('favicon').href = faviconHref();
-  $('contract-address').textContent = CONTRACT;
+  $('contract-address').textContent = shorten(CONTRACT);
+  $('net-contract-bet').href = `${EXPLORER}/address/${CONTRACT}`;
+  $('net-contract-bet').title = CONTRACT;
+  $('cover-address').textContent = shorten(COVER_CONTRACT);
+  $('net-contract-cover').href = `${EXPLORER}/address/${COVER_CONTRACT}`;
+  $('net-contract-cover').title = COVER_CONTRACT;
   $('explorer-link').href = `${EXPLORER}/address/${CONTRACT}`;
 
   // Independently, so a stumble on one does not blank the other.
