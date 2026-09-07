@@ -1,25 +1,34 @@
 /**
  * NoClaim - the cover desk.
  *
- * Two people use this page and they want opposite things: a buyer wants the
- * trigger not to fire, an underwriter wants exactly that too but is paid for
- * the risk it might. So the page shows both sides of the same pool rather than
- * hiding the underwriting behind the product, and the number it leads with is
- * `free` - how much cover the contract can still honestly sell.
+ * Three things shape this page.
+ *
+ * The network is not a footnote. Which chain this talks to, which contract, and
+ * whether the connected wallet agrees, sit above everything else and turn amber
+ * the moment they stop matching - because a page that asks you to sign should
+ * never leave you guessing where the signature is going.
+ *
+ * "How to take part" is a live checklist rather than a set of instructions. It
+ * ticks itself off from real state, so the question it answers is not "what are
+ * the steps" but "which step am I on".
+ *
+ * Two audiences want opposite things from the same pool - a buyer wants the
+ * trigger not to fire, an underwriter is paid for the risk that it might - so
+ * they get tabs rather than competing for one long scroll.
  */
 import {
   $, signer, isSignedIn, initWallet, connectWallet, signOut, ensureStudioChain,
   readChainId, chainLabel, makeContract, toast, withBusy, cleanError,
-  gen, toWei, shorten, escapeHtml, setText, rpc, isBusy, isRateLimited, EXPLORER, ONE_GEN,
+  gen, toWei, shorten, escapeHtml, setText, rpc, isBusy, isRateLimited,
+  EXPLORER, ONE_GEN,
 } from './wallet.js';
 import { markSvg, faviconHref } from './brand.js';
 import { COVER_TEMPLATES } from './cover-templates.js';
 
-// Deployed and verified by tests/integration/test_noclaim_studionet.py: cover
+// Deployed and exercised by tests/integration/test_noclaim_studionet.py: cover
 // refused when unbacked, a policy settled from real price evidence, and an
 // unknowable trigger refunded in full.
 const CONTRACT = '0xBF326FA29B839cF95d3c9d0895b7A852031C3822';
-const GUIDE_STORAGE = 'noclaim_guide';
 const BLOCKED_SOURCE_HOSTS = ['binance.com'];
 
 const contract = makeContract(CONTRACT);
@@ -27,63 +36,63 @@ const contract = makeContract(CONTRACT);
 let pool = null;
 let policies = [];
 let mine = [];
+let walletGen = 0n;
+let uwStake = 0n;
+let owed = 0n;
 
-// --- account ---------------------------------------------------------
+// --- the network bar -------------------------------------------------
 
-function renderAccount() {
-  const inFlag = isSignedIn();
-  $('login-panel').hidden = inFlag;
-  $('wallet').hidden = !inFlag;
-  $('btn-open-login').hidden = inFlag;
-  if (!inFlag) { $('buy-panel').hidden = true; $('mine-section').hidden = true; }
-  $('uw-actions').style.display = inFlag ? '' : 'none';
-
+function renderNetbar() {
+  const connected = isSignedIn();
   const chain = chainLabel();
-  setText($('network-name'), chain.name);
-  $('network-name').className = chain.ok ? 'net-ok' : 'net-bad';
-  $('btn-switch-chain').hidden = chain.ok;
-  $('chain-dot').className = `dot ${chain.ok || !inFlag ? 'ok' : 'bad'}`;
-  setText($('chain-label'), chain.ok || !inFlag ? 'StudioNet 61999' : 'wrong network');
+  const wrong = connected && !chain.ok;
 
+  $('netbar').className = `netbar${wrong ? ' wrong' : ''}`;
+  $('net-dot').className = `dot${wrong ? ' bad' : ''}`;
+  setText($('net-name'), wrong ? chain.name : 'GenLayer StudioNet');
+  $('net-id').hidden = wrong;
+  $('btn-switch-chain').hidden = !wrong;
+
+  $('net-account').hidden = !connected;
+  $('btn-connect').hidden = connected;
   setText($('wallet-address'), shorten(signer.address));
   $('wallet-address').title = signer.address || '';
-  setText($('signer-note'),
-    'Every action asks your wallet to sign. Consensus takes about a minute, so approve promptly.');
-
-  renderPolicies();
 }
 
-async function refreshAccount() {
-  renderAccount();
-  if (!signer.address) return;
-  try {
-    setText($('wallet-gas'), gen(BigInt(await rpc('eth_getBalance', [signer.address, 'latest']))));
-  } catch { /* keep the last figure */ }
-  try {
-    const owed = BigInt(await contract.read('get_balance', [signer.address]));
-    setText($('wallet-balance'), gen(owed));
-    $('collect-panel').hidden = owed === 0n;
-    setText($('collect-line'),
-      owed > 0n ? `${gen(owed)} GEN is yours to take - a paid claim, a refunded premium, or both.` : '');
-  } catch { /* contract may be unreachable for a moment */ }
-  try {
-    setText($('uw-stake'), gen(BigInt(await contract.read('get_underwriter', [signer.address]))));
-  } catch { /* as above */ }
-}
+// --- how to take part ------------------------------------------------
 
-/** Skips the whole cycle while the node is refusing us, so a rate limit does
- *  not become a queue of requests that arrive after it lifts. */
-function shouldPoll() {
-  return !isBusy() && !document.hidden && !isRateLimited();
+/** The third step is done once you actually hold cover or have capital in the
+ *  pool - not merely once you have looked at the form. */
+function renderSteps() {
+  const states = [
+    ['step-connect', isSignedIn()],
+    ['step-gen', walletGen > 0n],
+    ['step-act', mine.length > 0 || uwStake > 0n],
+  ];
+  let pending = true;
+  let done = 0;
+  for (const [id, isDone] of states) {
+    const li = $(id);
+    li.classList.toggle('done', isDone);
+    li.classList.toggle('now', !isDone && pending);
+    if (isDone) done++;
+    else pending = false;
+  }
+  // The checklist stays on the page once it is complete. Hiding it would take
+  // away the only place that says how any of this works, which is exactly what
+  // someone arriving second on a shared screen needs to read.
+  setText($('start-progress'), done === 3 ? 'all set' : `step ${done + 1} of 3`);
+  $('start').classList.toggle('complete', done === 3);
 }
 
 // --- the pool --------------------------------------------------------
 
 async function loadPool() {
   pool = await contract.read('get_pool');
+  setText($('stat-free'), `${gen(BigInt(pool.free), 2)} GEN`);
   setText($('stat-total'), `${gen(BigInt(pool.total), 2)} GEN`);
   setText($('stat-reserved'), `${gen(BigInt(pool.reserved), 2)} GEN`);
-  setText($('stat-free'), `${gen(BigInt(pool.free), 2)} GEN`);
+  setText($('stat-earned'), `${gen(BigInt(pool.premiums_earned), 3)} GEN`);
   setText($('stat-paid'), `${gen(BigInt(pool.payouts_made), 2)} GEN`);
   setText($('uw-earned'), gen(BigInt(pool.premiums_earned)));
   setText($('uw-free'), gen(BigInt(pool.free)));
@@ -99,7 +108,7 @@ function sortForDisplay(list) {
     if (p.status !== 'ACTIVE') return 2;
     return Number(p.expires_ts) > Math.floor(Date.now() / 1000) ? 0 : 1;
   };
-  return list.sort((a, b) => rank(a) - rank(b) || Number(b.id) - Number(a.id));
+  return [...list].sort((a, b) => rank(a) - rank(b) || Number(b.id) - Number(a.id));
 }
 
 function policyState(p) {
@@ -127,22 +136,6 @@ function countdown(seconds) {
   return `${s}s`;
 }
 
-async function loadPolicies() {
-  const raw = await contract.read('get_all_policies');
-  policies = sortForDisplay(Object.values(typeof raw === 'string' ? JSON.parse(raw) : (raw || {})));
-
-  // Derived from the list already in hand rather than asked separately.
-  // get_policies_of is the more principled source - it is the contract's own
-  // answer to "which are mine" - but it costs an extra request every cycle for
-  // a value the reply above already contains, and the node's rate limit is the
-  // binding constraint here. `holder` is the same field the view filters on.
-  const me = signer.address ? signer.address.toLowerCase() : null;
-  mine = me ? policies.filter((p) => p.holder === me) : [];
-  renderPolicies();
-}
-
-/** One policy, rendered the same whether it is yours or somebody else's - the
- *  only difference is which list it lands in. */
 function policyCard(p) {
   const state = policyState(p);
   const payout = BigInt(p.payout || 0);
@@ -163,7 +156,7 @@ function policyCard(p) {
         <span class="term-value">${gen(payout)} <span class="unit">GEN</span></span>
       </div>
       <div class="term">
-        <span class="term-label">Premium paid</span>
+        <span class="term-label">Premium</span>
         <span class="term-value">${gen(premium)} <span class="unit">GEN</span></span>
       </div>
       <div class="term">
@@ -181,24 +174,50 @@ function policyCard(p) {
 
   if (state.key === 'due') {
     const b = document.createElement('button');
+    b.className = 'ghost small';
     b.textContent = 'Settle now';
-    b.title = 'Anyone can trigger settlement - there is no adjuster to appoint';
+    b.title = 'Anyone can settle an expired policy - there is no adjuster to appoint';
     b.onclick = () => settle(p);
     card.querySelector('.policy-actions').appendChild(b);
   }
   return card;
 }
 
-/** What you personally are covered for, and what your cover has done so far. */
-function renderMine() {
-  const section = $('mine-section');
-  if (!isSignedIn() || !mine.length) {
-    section.hidden = true;
-    $('btn-open-buy-alt').hidden = !isSignedIn();
-    return;
+async function loadPolicies() {
+  const raw = await contract.read('get_all_policies');
+  const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+  policies = sortForDisplay(Object.values(parsed));
+
+  // Derived from the list already in hand rather than asked for separately.
+  // get_policies_of is the more principled source, but it costs a whole request
+  // per refresh for a value this reply already contains, and the node's rate
+  // limit is the binding constraint on this page.
+  const me = signer.address ? signer.address.toLowerCase() : null;
+  mine = me ? policies.filter((p) => p.holder === me) : [];
+  renderPolicies();
+}
+
+function renderPolicies() {
+  setText($('tab-book-count'), policies.length ? String(policies.length) : '');
+  setText($('tab-mine-count'), mine.length ? String(mine.length) : '');
+
+  const book = $('policies');
+  book.innerHTML = '';
+  if (!policies.length) {
+    book.innerHTML = '<p class="empty">No cover has been written yet.</p>';
+  } else {
+    for (const p of policies) book.appendChild(policyCard(p));
   }
-  section.hidden = false;
-  $('btn-open-buy-alt').hidden = true;
+
+  const host = $('mine-policies');
+  host.innerHTML = '';
+  if (!isSignedIn()) {
+    host.innerHTML = '<p class="empty">Connect a wallet to see the cover you hold.</p>';
+  } else if (!mine.length) {
+    host.innerHTML = '<p class="empty">You hold no cover yet. Buy some from the first tab.</p>';
+  } else {
+    for (const p of mine) host.appendChild(policyCard(p));
+  }
 
   const now = Math.floor(Date.now() / 1000);
   let active = 0n, premiums = 0n, paid = 0n, refunded = 0n;
@@ -213,22 +232,7 @@ function renderMine() {
   setText($('mine-paid'), gen(paid, 2));
   setText($('mine-refunded'), gen(refunded, 3));
 
-  const host = $('mine-policies');
-  host.innerHTML = '';
-  for (const p of sortForDisplay([...mine])) host.appendChild(policyCard(p));
-}
-
-function renderPolicies() {
-  renderMine();
-  const host = $('policies');
-  if (!host) return;
-  if (!policies.length) {
-    host.innerHTML = '<p class="empty">No cover written yet. Be the first to buy some.</p>';
-    return;
-  }
-
-  host.innerHTML = '';
-  for (const p of policies) host.appendChild(policyCard(p));
+  renderSteps();
 }
 
 // --- quoting ---------------------------------------------------------
@@ -246,13 +250,13 @@ function renderQuote() {
   const minPremium = (payout * rate) / 10000n;
 
   const backed = payout > 0n && payout <= free;
-  const priced = premium >= minPremium && premium > 0n;
+  const priced = premium > 0n && premium >= minPremium;
 
   host.innerHTML = `
     <div class="quote-row ${backed ? 'ok' : 'bad'}">
       <span class="q-label">Pool can back it</span>
       <span class="q-value">${backed
-        ? `yes - ${gen(free, 2)} GEN free`
+        ? `yes - ${gen(free, 2)} GEN is unreserved`
         : `no - only ${gen(free, 2)} GEN is unreserved`}</span>
     </div>
     <div class="quote-row ${priced ? 'ok' : 'bad'}">
@@ -269,39 +273,77 @@ function renderQuote() {
       <span class="q-value">${gen(premium)} GEN back - the pool earns nothing</span>
     </div>
   `;
-  $('btn-buy').disabled = !(backed && priced);
+
+  $('btn-buy').disabled = !(backed && priced && isSignedIn());
+  setText($('buy-hint'),
+    !isSignedIn() ? 'Connect a wallet to buy cover.'
+      : !backed ? 'Lower the sum insured, or add capital to the pool.'
+      : !priced ? 'Raise the premium to at least the minimum above.'
+      : '');
+}
+
+// --- account ---------------------------------------------------------
+
+function renderAccount() {
+  renderNetbar();
+  $('uw-actions').style.display = isSignedIn() ? '' : 'none';
+  renderPolicies();
+}
+
+async function refreshAccount() {
+  renderAccount();
+  if (!signer.address) {
+    walletGen = 0n; uwStake = 0n; owed = 0n;
+    setText($('uw-stake'), '-');
+    $('collect-panel').hidden = true;
+    renderSteps();
+    return;
+  }
+  // Each of these keeps its last good figure if the node refuses us, rather
+  // than blanking the number. They are logged: a silent catch here once hid a
+  // collectable balance behind a hidden banner for an entire session.
+  try {
+    walletGen = BigInt(await rpc('eth_getBalance', [signer.address, 'latest']));
+  } catch (e) { console.debug('wallet balance', e); }
+  try {
+    owed = BigInt(await contract.read('get_balance', [signer.address]));
+    $('collect-panel').hidden = owed === 0n;
+    setText($('collect-line'), owed > 0n ? `${gen(owed)} GEN is yours to collect` : '');
+  } catch (e) { console.debug('get_balance', e); }
+  try {
+    uwStake = BigInt(await contract.read('get_underwriter', [signer.address]));
+    setText($('uw-stake'), gen(uwStake));
+  } catch (e) { console.debug('get_underwriter', e); }
+  renderSteps();
+  renderQuote();
 }
 
 // --- actions ---------------------------------------------------------
 
-function requireSignIn(what = 'do that') {
+function requireSignIn(what) {
   if (isSignedIn()) return true;
   toast(`Connect a wallet to ${what}`, 'info');
-  $('login-panel').hidden = false;
-  $('login-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('start').scrollIntoView({ behavior: 'smooth', block: 'center' });
   return false;
 }
 
 async function buyCover(event) {
   event.preventDefault();
   if (!requireSignIn('buy cover')) return;
-
-  const payout = toWei($('f-payout').value);
-  const premium = toWei($('f-premium').value);
   const expires = Math.floor(Date.now() / 1000) + Number($('f-window').value) * 60;
-
   await withBusy('Writing the policy', async () => {
     await contract.write('buy_policy', [
       $('f-trigger').value.trim(),
       $('f-criteria').value.trim(),
       $('f-sources').value.trim(),
-      payout,
+      toWei($('f-payout').value),
       expires,
-    ], premium);
+    ], toWei($('f-premium').value));
     toast('Cover is live', 'success');
     $('buy-form').reset();
-    $('buy-panel').hidden = true;
-    await reloadAll();
+    $('source-preview').hidden = true;
+    await reloadAll({ force: true });
+    showTab('mine');
   });
 }
 
@@ -309,14 +351,14 @@ async function settle(policy) {
   if (!requireSignIn('settle a policy')) return;
   await withBusy('Adjudicating - validators are fetching the evidence', async () => {
     await contract.write('settle_policy', [Number(policy.id)]);
-    await reloadAll();
+    await reloadAll({ force: true });
     const fresh = policies.find((p) => p.id === policy.id);
     const said = {
       PAID: 'Trigger fired - the sum insured is yours to collect',
       REFUNDED: 'Could not be judged - your premium has been refunded',
       EXPIRED: 'Trigger did not fire - the pool keeps the premium',
-    }[fresh?.settlement] || 'Settled';
-    toast(said, fresh?.settlement === 'EXPIRED' ? 'info' : 'success');
+    }[fresh?.settlement];
+    toast(said || 'Settled', fresh?.settlement === 'EXPIRED' ? 'info' : 'success');
   });
 }
 
@@ -336,19 +378,19 @@ async function fundPool() {
   await withBusy('Adding capital', async () => {
     await contract.write('fund_pool', [], toWei(amount));
     toast('Capital added - you are now underwriting', 'success');
-    await reloadAll();
+    await reloadAll({ force: true });
   });
 }
 
 async function withdrawPool() {
   if (!requireSignIn('withdraw')) return;
   const free = pool ? gen(BigInt(pool.free)) : '0';
-  const amount = prompt(`How much to withdraw? Only unreserved capital can leave; ${free} GEN is free.`, free);
+  const amount = prompt(`Only unreserved capital can leave. ${free} GEN is free.`, free);
   if (!amount) return;
   await withBusy('Withdrawing', async () => {
     await contract.write('withdraw_pool', [toWei(amount)]);
     toast('Withdrawn', 'success');
-    await reloadAll();
+    await reloadAll({ force: true });
   });
 }
 
@@ -370,7 +412,7 @@ function checkSources() {
   const parts = value.split(',').map((u) => u.trim()).filter(Boolean);
   const broken = parts.find((u) => !/^https?:\/\//.test(u));
   if (broken) {
-    el.textContent = `"${broken.slice(0, 40)}" is not a URL. Sources are comma separated, so a URL containing a comma must use %2C instead.`;
+    el.textContent = `"${broken.slice(0, 40)}" is not a URL. Sources are comma separated, so a URL that itself contains a comma must use %2C instead.`;
     el.hidden = false;
     return;
   }
@@ -383,8 +425,8 @@ function checkSources() {
   }
 }
 
-/** Fetches whatever is in the sources box so a trigger can be sanity-checked
- *  against real evidence before any money is committed to it. */
+/** Fetches whatever is in the sources box, so a trigger can be checked against
+ *  real evidence before any money is committed to it. */
 async function previewSources() {
   const urls = ($('f-sources').value || '').split(',').map((u) => u.trim()).filter(Boolean).slice(0, 3);
   const host = $('source-preview');
@@ -400,7 +442,10 @@ async function previewSources() {
     } catch {
       // A browser CORS refusal says nothing about whether a validator can read
       // it - they fetch server-side - so this is unknown, not bad.
-      return { url, ok: null, status: 'no preview', text: 'The browser could not fetch this, often CORS. Validators fetch it themselves, so it may still work.' };
+      return {
+        url, ok: null, status: 'no preview',
+        text: 'The browser could not fetch this, usually CORS. Validators fetch it themselves, so it may still settle fine.',
+      };
     }
   }));
 
@@ -455,82 +500,103 @@ function buildTemplates() {
   }
 }
 
+// --- tabs ------------------------------------------------------------
+
+function showTab(name) {
+  for (const t of document.querySelectorAll('.tab')) {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  }
+  for (const p of document.querySelectorAll('.tabpanel')) {
+    p.classList.toggle('active', p.id === `panel-${name}`);
+  }
+}
+
 // --- boot ------------------------------------------------------------
 
-async function reloadAll() {
-  await Promise.all([
-    loadPool().catch((e) => console.error('pool', e)),
-    loadPolicies().catch((e) => console.error('policies', e)),
-  ]);
-  await refreshAccount();
+let reloading = null;
+
+/** Coalesced, because two callers arrive together at the two moments that
+ *  matter: boot both initialises the wallet and renders, and connecting fires
+ *  an auth change *and* returns to whoever clicked. Left alone that is ten
+ *  requests in one burst, which is what trips the node's rate limit - and a
+ *  rate-limited read fails quietly, so the page just looks wrong.
+ *
+ *  `force` is for after a write, where the point is to see the new state and
+ *  reusing a reload that started beforehand would show the old one. */
+function reloadAll({ force = false } = {}) {
+  if (reloading && !force) return reloading;
+  const previous = reloading;
+  const run = (async () => {
+    if (previous) await previous.catch(() => {});
+    await loadPool().catch((e) => console.error('pool', e));
+    await loadPolicies().catch((e) => console.error('policies', e));
+    await refreshAccount();
+  })();
+  reloading = run;
+  run.catch(() => {}).then(() => { if (reloading === run) reloading = null; });
+  return run;
 }
 
 async function main() {
-  $('mark-slot').innerHTML = markSvg(32);
+  $('mark-slot').innerHTML = markSvg(30);
   $('favicon').href = faviconHref();
-  $('contract-address').textContent = CONTRACT;
+  setText($('contract-address'), shorten(CONTRACT));
+  $('net-contract').href = `${EXPLORER}/address/${CONTRACT}`;
+  $('net-contract').title = CONTRACT;
   $('explorer-link').href = `${EXPLORER}/address/${CONTRACT}`;
 
-  // Connecting changes the answer to "which of these are mine", and that
-  // answer comes from the contract rather than from a filter here - so an auth
-  // change has to re-read the policies, not merely re-render them.
+  // Connecting changes which policies are "mine", so an auth change re-reads
+  // rather than merely re-rendering what is already in hand.
   await initWallet({
     onAuthChange: () => {
       renderAccount();
-      loadPolicies().catch((e) => console.error('policies', e));
+      reloadAll().catch((e) => console.error('reload', e));
     },
   });
 
-  $('btn-open-login').onclick = () => requireSignIn('use this');
-  $('btn-login-wallet').onclick = async () => { if (await connectWallet()) await reloadAll(); };
+  // connectWallet fires the auth change, which reloads; doing it again here is
+  // how the burst that trips the rate limit gets built.
+  const connect = () => connectWallet();
+  $('btn-connect').onclick = connect;
+  $('step-connect-btn').onclick = connect;
   $('btn-signout').onclick = signOut;
   $('btn-switch-chain').onclick = async () => {
     const ok = await ensureStudioChain();
     signer.chainId = await readChainId();
-    renderAccount();
+    renderNetbar();
     toast(ok ? 'Now on StudioNet' : 'Could not switch - approve it in your wallet', ok ? 'success' : 'error');
+    if (ok) await reloadAll({ force: true });
   };
 
-  $('btn-fund').onclick = getTestGen;
-  $('btn-collect').onclick = collect;
+  $('step-gen-btn').onclick = getTestGen;
+  $('step-buy-btn').onclick = () => { showTab('buy'); $('panel-buy').scrollIntoView({ behavior: 'smooth' }); };
+  $('step-uw-btn').onclick = () => { showTab('underwrite'); $('panel-underwrite').scrollIntoView({ behavior: 'smooth' }); };
+
   $('btn-collect-all').onclick = collect;
   $('btn-fund-pool').onclick = fundPool;
   $('btn-withdraw-pool').onclick = withdrawPool;
 
-  const openBuy = () => {
-    $('buy-panel').hidden = false;
-    $('buy-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  $('btn-open-buy').onclick = openBuy;
-  $('btn-open-buy-alt').onclick = openBuy;
   $('buy-form').addEventListener('submit', buyCover);
   $('btn-check-sources').onclick = () => previewSources();
   $('f-sources').addEventListener('input', checkSources);
-  for (const id of ['f-payout', 'f-premium']) {
-    $(id).addEventListener('input', renderQuote);
-  }
-  $('btn-refresh').onclick = () => reloadAll().catch((e) => toast(cleanError(e), 'error'));
+  for (const id of ['f-payout', 'f-premium']) $(id).addEventListener('input', renderQuote);
+  $('btn-refresh').onclick = () => reloadAll({ force: true }).catch((e) => toast(cleanError(e), 'error'));
 
-  $('btn-toggle-guide').onclick = () => {
-    const steps = $('guide-steps');
-    const hiding = !steps.hidden;
-    steps.hidden = hiding;
-    $('btn-toggle-guide').textContent = hiding ? 'Show' : 'Hide';
-    try { localStorage.setItem(GUIDE_STORAGE, hiding ? 'hidden' : 'shown'); } catch { /* private mode */ }
-  };
-  if (localStorage.getItem(GUIDE_STORAGE) === 'hidden') {
-    $('guide-steps').hidden = true;
-    $('btn-toggle-guide').textContent = 'Show';
+  for (const t of document.querySelectorAll('.tab')) {
+    t.onclick = () => showTab(t.dataset.tab);
   }
 
   buildTemplates();
   await reloadAll();
 
-  // Countdowns are local; the chain is re-read only occasionally.
-  // Countdowns are local and free. The chain is asked once a minute, and not
-  // at all while the tab is hidden or the node is refusing.
+  // Countdowns are local and free. The chain is asked once a minute, and not at
+  // all while the tab is hidden or the node is refusing us.
   setInterval(() => { if (!isBusy()) renderPolicies(); }, 1000);
-  setInterval(() => { if (shouldPoll()) reloadAll().catch(() => {}); }, 60000);
+  setInterval(() => {
+    if (!isBusy() && !document.hidden && !isRateLimited()) reloadAll().catch(() => {});
+  }, 60000);
 }
 
 main();

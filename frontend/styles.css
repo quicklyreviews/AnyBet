@@ -971,3 +971,283 @@ figure.exhibit blockquote {
 }
 #mine-section { margin-bottom: 28px; }
 #mine-section .section-head { margin-bottom: 12px; }
+
+/* ================= NoClaim desk: rebuilt ================= */
+
+/* --- the network bar: which chain, which contract, who is connected --- */
+
+.netbar {
+  background: var(--ink);
+  color: var(--ground);
+  font-size: 12.5px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.netbar.wrong { background: var(--unknown); color: #1a1206; }
+
+.netbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+.net-state { display: inline-flex; align-items: center; gap: 8px; }
+.netbar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yes); flex-shrink: 0; }
+.netbar .dot.bad { background: #ffd479; }
+.netbar strong { font-weight: 600; }
+.net-id { opacity: .62; font-family: var(--mono); font-size: 11px; }
+
+.net-contract {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  color: inherit;
+  text-decoration: none;
+  opacity: .8;
+}
+.net-contract:hover { opacity: 1; text-decoration: underline; }
+.net-contract .label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+.net-contract code { font-size: 11px; }
+
+.netbar-right { margin-left: auto; display: inline-flex; align-items: center; gap: 12px; }
+.net-account { display: inline-flex; align-items: center; gap: 9px; }
+.net-account code { font-size: 11.5px; }
+.netbar .link { color: inherit; opacity: .7; font-size: 11.5px; }
+.netbar .link:hover { opacity: 1; }
+
+button.small { padding: 5px 11px; font-size: 12.5px; }
+button.warnbtn {
+  background: var(--ground);
+  color: var(--ink);
+  border-color: var(--ground);
+  font-weight: 600;
+  padding: 5px 11px;
+  font-size: 12.5px;
+}
+
+/* --- hero --- */
+
+body.desk .hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 30px 0 34px;
+  margin-bottom: 30px;
+}
+body.desk .hero .lockup { display: inline-flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+body.desk .hero h1 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(28px, 4.4vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -.02em;
+  margin: 0 0 14px;
+  max-width: 20ch;
+}
+body.desk .hero .hero-lede {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 62ch;
+  margin: 0;
+}
+
+/* --- how to take part: live state, not a static list --- */
+
+.start { margin-bottom: 30px; }
+.start-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.start-head h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0;
+}
+.start-progress { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--muted); }
+
+.steps-live {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.steps-live li {
+  counter-increment: step;
+  background: var(--surface);
+  padding: 15px 17px 17px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.steps-live li.done { background: var(--sunk); }
+.steps-live li.done h3, .steps-live li.done p { opacity: .6; }
+
+.steps-live .tick {
+  flex-shrink: 0;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.steps-live .tick::before { content: counter(step); }
+.steps-live li.done .tick {
+  border-color: var(--yes);
+  background: var(--yes);
+  color: #fff;
+}
+.steps-live li.done .tick::before { content: "\2713"; }
+.steps-live li.now .tick { border-color: var(--accent); color: var(--accent); }
+
+.steps-live h3 { margin: 0 0 3px; font-size: 14.5px; font-weight: 600; }
+.steps-live p { margin: 0 0 9px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.steps-live button { margin: 0; }
+.steps-live li.done button { display: none; }
+.step-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+/* --- the pool, weighted to the number that matters --- */
+
+.pool-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.pool-card {
+  background: var(--ink);
+  color: var(--ground);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pool-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  opacity: .72;
+}
+.pool-figure {
+  font-family: var(--display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.pool-note { font-size: 11.5px; opacity: .68; line-height: 1.45; }
+
+.pool-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 18px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.pool-side dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.pool-side dd {
+  margin: 0;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--display);
+  font-weight: 600;
+}
+
+/* --- tabs: two audiences stop fighting over one scroll --- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  overflow-x: auto;
+}
+.tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 10px 15px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--ink); border-color: transparent; }
+.tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+.tab .count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 3px;
+}
+
+.tabpanel { display: none; }
+.tabpanel.active { display: block; }
+
+.collect-banner {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--yes);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.collect-banner strong { font-size: 16px; }
+.collect-banner .fineprint { margin: 3px 0 0; }
+
+@media (max-width: 700px) {
+  .pool-strip { grid-template-columns: 1fr; }
+  .netbar-right { margin-left: 0; width: 100%; }
+}
+
+/* An element with the hidden attribute stays hidden, whatever display value a
+   layout rule below gives it. Without this, `display: inline-flex` on a flex
+   row quietly beats the attribute. */
+[hidden] { display: none !important; }
+
+/* Complete: the checklist stays, but stops shouting. It is still the only
+   place on the page that explains what any of this is, so it is never removed
+   - only quietened once you are through it. */
+.start.complete { padding-top: 22px; padding-bottom: 22px; }
+.start.complete .steps-live p,
+.start.complete .steps-live button { display: none; }
+.start.complete .steps-live li { padding: 12px 14px; }
+.start.complete .steps-live h3 { margin: 0; }
+.start.complete .start-progress { color: var(--yes); }
