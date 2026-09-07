@@ -116,12 +116,20 @@ function rewrite(text) {
   return text;
 }
 
+// Images go across byte for byte: reading a PNG as utf8 and writing it back
+// silently corrupts it, and the marker strip has nothing to find in one anyway.
+const BINARY = /\.(png|jpe?g|webp|ico|gif)$/i;
+
 function copy(rel, dstRel = rel, from = ROOT) {
   const src = join(from, rel);
   if (!existsSync(src)) throw new Error(`missing: ${rel}`);
-  const { out, cut } = strip(readFileSync(src, 'utf8'));
   const dst = join(OUT, dstRel);
   mkdirSync(dirname(dst), { recursive: true });
+  if (BINARY.test(rel)) {
+    writeFileSync(dst, readFileSync(src));
+    return 0;
+  }
+  const { out, cut } = strip(readFileSync(src, 'utf8'));
   writeFileSync(dst, rewrite(out));
   return cut;
 }
