@@ -39,6 +39,7 @@ const KEEP = [
   'tests/direct/test_no_claim.py',
   'tests/integration/test_noclaim_studionet.py',
   'tests/integration/probe_sources.py',
+  'tests/integration/demo_cover.py',
   'pytest.ini',
   '.gitignore',
   '.github/workflows/pages.yml',
