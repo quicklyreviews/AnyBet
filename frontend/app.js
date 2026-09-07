@@ -1,8 +1,13 @@
 /**
  * AnyBet - browser client.
  *
- * No build step: the import map in index.html pulls genlayer-js and viem from
- * esm.sh, the same approach GenPredict's frontend uses.
+ * No build step: the import map in app.html pulls genlayer-js from esm.sh.
+ *
+ * The wallet, the network check, the request queue and the small formatting
+ * helpers live in wallet.js, shared with the cover desk. They used to be copied
+ * here, and the copy drifted: the rate-limit backoff added after StudioNet
+ * started refusing bursts went into one file and not the other, so this page
+ * kept hammering a node that had stopped answering and reported it as CORS.
  *
  * Signing is the user's own wallet and nothing else. An earlier version also
  * offered a throwaway key kept in localStorage, which made trying the app
@@ -11,428 +16,128 @@
  * market whose accounts evaporate with the browser cache is not one anybody
  * should put money into, so that option is gone.
  */
-import { createClient } from 'genlayer-js';
-import { studionet } from 'genlayer-js/chains';
-import { TransactionStatus } from 'genlayer-js/types';
+import {
+  $, signer, isSignedIn, initWallet, connectWallet, signOut, ensureStudioChain,
+  readChainId, chainLabel, makeContract, toast, withBusy, cleanError,
+  gen, toWei, shorten, escapeHtml, setText, rpc, isBusy, isRateLimited,
+  EXPLORER, ONE_GEN,
+} from './wallet.js';
 import { TEMPLATES } from './templates.js';
 import { markSvg, faviconHref } from './brand.js';
 
-const RPC = 'https://studio.genlayer.com/api';
-const EXPLORER = 'https://genlayer-explorer.vercel.app';
-const CONTRACT_STORAGE = 'anybet_contract_address';
-
-// Deployed and verified end to end by tests/integration/test_resolution_consensus.py,
-// then seeded with real bettors by tests/integration/demo_run.py.
-const DEFAULT_CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
-
-// Binance answers GenLayer's validator nodes with HTTP 200 and a body saying
-// the service is unavailable from a restricted location, so a market sourced
-// from it resolves UNKNOWN whatever the real answer is. Worth catching before
-// somebody stakes on it rather than after.
+const CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
 const BLOCKED_SOURCE_HOSTS = ['binance.com'];
 
-const ONE_GEN = 10n ** 18n;
+const contractAddress = CONTRACT;
+const contract = makeContract(CONTRACT);
+const read = (fn, args = [], tries = 2) => contract.read(fn, args, tries);
+const write = (fn, args = [], value = 0n) => contract.write(fn, args, value);
 
-const CHAIN_ID_HEX = '0xf22f'; // 61999
-const MODE_STORAGE = 'anybet_signer_mode';
-const GUIDE_STORAGE = 'anybet_guide';
-
-/** The connected wallet. `mode` is null until somebody signs in. */
-const signer = {
-  mode: null,      // null = signed out; 'session' | 'wallet' once signed in
-  account: null,   // viem LocalAccount in session mode, address string in wallet mode
-  address: null,
-  client: null,
-  chainId: null,   // wallet mode only: what the wallet is actually on right now
-};
-
-// Chains a wallet is likely to be sitting on, so the panel can name the wrong
-// one instead of showing a bare hex id nobody reads.
-const KNOWN_CHAINS = {
-  '0xf22f': 'GenLayer StudioNet',
-  '0x1': 'Ethereum mainnet',
-  '0xaa36a7': 'Sepolia',
-  '0x89': 'Polygon',
-  '0x38': 'BNB Chain',
-  '0x2105': 'Base',
-  '0xa4b1': 'Arbitrum One',
-};
-
-// Reading is not an account action, so it gets its own client and works signed
-// out. Browsing the markets is how somebody decides whether to sign in at all;
-// making them commit first would be asking for trust before showing anything.
-let readClient = null;
-
-let contractAddress = localStorage.getItem(CONTRACT_STORAGE) || DEFAULT_CONTRACT;
 let markets = [];
-let busy = false;
+let walletGen = 0n;
+let deposited = 0n;
+let claimableCount = 0;
 
-// --- small helpers ---------------------------------------------------
+// --- the network bar -------------------------------------------------
 
-const $ = (id) => document.getElementById(id);
+function renderNetbar() {
+  const connected = isSignedIn();
+  const chain = chainLabel();
+  const wrong = connected && !chain.ok;
 
-function toast(message, kind = 'info') {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = `toast ${kind}`;
-  el.hidden = false;
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.hidden = true; }, kind === 'error' ? 9000 : 5000);
-}
+  $('netbar').className = `netbar${wrong ? ' wrong' : ''}`;
+  $('net-dot').className = `dot${wrong ? ' bad' : ''}`;
+  setText($('net-name'), wrong ? chain.name : 'GenLayer StudioNet');
+  $('net-id').hidden = wrong;
+  $('btn-switch-chain').hidden = !wrong;
 
-function gen(wei, dp = 3) {
-  const n = typeof wei === 'bigint' ? wei : BigInt(wei || 0);
-  return (Number(n) / Number(ONE_GEN)).toFixed(dp);
-}
-
-function toWei(genAmount) {
-  const [whole, frac = ''] = String(genAmount).split('.');
-  return BigInt(whole || 0) * ONE_GEN + BigInt((frac + '0'.repeat(18)).slice(0, 18));
-}
-
-function shorten(addr) {
-  return addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '-';
-}
-
-async function rpc(method, params, tries = 3) {
-  let last;
-  for (let i = 0; i < tries; i++) {
-    try {
-      const res = await fetch(RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
-      });
-      const body = await res.json();
-      if (body.error) throw new Error(body.error.message || JSON.stringify(body.error));
-      return body.result;
-    } catch (e) {
-      last = e;
-      await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
-    }
-  }
-  throw last;
-}
-
-/** Runs an action with the button disabled, so a slow consensus round cannot be
- *  double-submitted by an impatient second click. */
-async function withBusy(label, fn) {
-  if (busy) { toast('Still waiting on the previous transaction', 'info'); return; }
-  busy = true;
-  document.body.classList.add('busy');
-  try {
-    toast(`${label}... this takes about a minute to reach consensus`);
-    const result = await fn();
-    return result;
-  } catch (e) {
-    console.error(e);
-    toast(cleanError(e), 'error');
-  } finally {
-    busy = false;
-    document.body.classList.remove('busy');
-  }
-}
-
-/** Contract errors arrive wrapped in a lot of transport noise; the useful part
- *  is the message the contract itself raised. */
-function cleanError(e) {
-  const raw = String(e?.message || e);
-  const m = raw.match(/UserError[^"]*?:?\s*([^"'\\}]{5,200})/);
-  if (m) return m[1].trim();
-  return raw.length > 200 ? raw.slice(0, 200) + '...' : raw;
-}
-
-// --- session wallet --------------------------------------------------
-
-function isSignedIn() {
-  return signer.mode !== null;
-}
-
-/** Every action that moves money goes through here first.
- *
- *  Signing in used to happen invisibly - the page minted a key on first load and
- *  started playing with it. That is friendlier right up until someone opens the
- *  site in another browser, finds a different account, and cannot see the money
- *  they left behind. An account you were never told you had is not an account
- *  you can keep. */
-function requireSignIn(action = 'do that') {
-  if (isSignedIn()) return true;
-  toast(`Sign in to ${action}`, 'info');
-  showLogin();
-  return false;
-}
-
-function showLogin() {
-  $('login-panel').hidden = false;
-  $('login-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function signOut() {
-  signer.mode = null;
-  signer.account = null;
-  signer.address = null;
-  signer.client = null;
-  signer.chainId = null;
-  localStorage.removeItem(MODE_STORAGE);
-  applyAuthUI();
-  toast('Disconnected. Your wallet keeps its keys - nothing of yours was stored here.');
-}
-
-/** Shows the signed-in furniture or the sign-in panel, never both.
- *
- *  The create form is a drawer rather than a permanent fixture: it is long, and
- *  leaving it open above the markets buries the thing people came to look at. */
-function applyAuthUI() {
-  const inFlag = isSignedIn();
-  $('btn-open-create').hidden = !inFlag;
-  if (!inFlag) $('create-panel').hidden = true;
-  $('login-panel').hidden = inFlag;
-  $('wallet').hidden = !inFlag;
-  $('btn-open-login').hidden = inFlag;
-  if (inFlag) renderSignerBar();
-  renderMarkets();
-}
-
-function getProvider() {
-  return window.ethereum || window.okxwallet || null;
-}
-
-/** MetaMask reports "unrecognised chain" in more than one shape: sometimes as
- *  err.code, sometimes buried in err.data.originalError.code. Missing the
- *  nested one means never offering to add the network, and the switch just
- *  fails. */
-function isUnknownChainError(err) {
-  const codes = [
-    err?.code,
-    err?.data?.originalError?.code,
-    err?.data?.code,
-    err?.cause?.code,
-  ];
-  return codes.includes(4902) || codes.includes(-32603);
-}
-
-async function readChainId() {
-  const provider = getProvider();
-  if (!provider) return null;
-  try {
-    return await provider.request({ method: 'eth_chainId' });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Put the wallet on StudioNet, and say plainly whether it worked.
- *
- * Returns true/false rather than throwing. Connecting and switching networks
- * are separate things: a refused or failed switch should leave the wallet
- * connected and the problem visible, not silently discard the account the user
- * just approved.
- */
-async function ensureStudioChain() {
-  const provider = getProvider();
-  if (!provider) return false;
-  if ((await readChainId()) === CHAIN_ID_HEX) return true;
-
-  try {
-    await provider.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: CHAIN_ID_HEX }],
-    });
-  } catch (err) {
-    if (!isUnknownChainError(err)) {
-      console.error('switch chain failed', err);
-      return (await readChainId()) === CHAIN_ID_HEX;
-    }
-    try {
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: CHAIN_ID_HEX,
-          chainName: 'GenLayer StudioNet',
-          rpcUrls: [RPC],
-          nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-          blockExplorerUrls: [EXPLORER],
-        }],
-      });
-      // Adding a network does not reliably select it, so ask again. Ignore a
-      // failure here: the add may already have switched us.
-      try {
-        await provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: CHAIN_ID_HEX }],
-        });
-      } catch { /* checked below */ }
-    } catch (addErr) {
-      console.error('add chain failed', addErr);
-      return false;
-    }
-  }
-  return (await readChainId()) === CHAIN_ID_HEX;
-}
-
-function bindProviderEvents(provider) {
-  if (provider._anybetBound) return;
-  provider._anybetBound = true;
-
-  provider.on?.('accountsChanged', async (accs) => {
-    if (signer.mode !== 'wallet') return;
-    if (!accs || !accs.length) { signOut(); return; }
-    attachWallet(accs[0], provider);
-    await refreshWallet();
-    toast(`Switched to ${shorten(accs[0])}`);
-  });
-
-  // Reloading the page on every network change loses whatever the user was in
-  // the middle of. Just re-read it and let the UI say where they are.
-  provider.on?.('chainChanged', async (id) => {
-    signer.chainId = id;
-    renderSignerBar();
-    await refreshWallet();
-  });
-}
-
-/** The proven call shape from GenPredict: chain + account + provider, and no
- *  endpoint - handing it an HTTP endpoint as well is what stops writes going
- *  through the wallet for signing. */
-function attachWallet(address, provider) {
-  signer.mode = 'wallet';
-  signer.account = address;
-  signer.address = address;
-  signer.client = createClient({ chain: studionet, account: address, provider });
-  localStorage.setItem(MODE_STORAGE, 'wallet');
-}
-
-async function connectWallet({ silent = false } = {}) {
-  const provider = getProvider();
-  if (!provider) {
-    if (!silent) toast('No wallet found - install MetaMask or another EVM wallet to play', 'error');
-    return false;
-  }
-
-  let accounts;
-  try {
-    accounts = await provider.request({
-      method: silent ? 'eth_accounts' : 'eth_requestAccounts',
-    });
-  } catch (e) {
-    console.error('wallet connect rejected', e);
-    if (!silent) toast(e?.code === 4001 ? 'Connection cancelled' : cleanError(e), 'error');
-    return false;
-  }
-  if (!accounts || !accounts.length) {
-    if (!silent) toast('Your wallet returned no accounts - unlock it and try again', 'error');
-    return false;
-  }
-
-  // Register the account BEFORE touching the network. Switching chains can fail
-  // or be refused, and none of that is a reason to throw away a wallet the user
-  // just approved - which is exactly what the previous version did.
-  attachWallet(accounts[0], provider);
-  bindProviderEvents(provider);
-
-  signer.chainId = await readChainId();
-  if (signer.chainId !== CHAIN_ID_HEX) {
-    const ok = await ensureStudioChain();
-    signer.chainId = await readChainId();
-    if (!ok && !silent) {
-      toast('Connected, but your wallet is not on StudioNet - use the Switch network button', 'error');
-    }
-  }
-
-  applyAuthUI();
-  if (!silent && signer.chainId === CHAIN_ID_HEX) {
-    toast(`Connected ${shorten(accounts[0])} on StudioNet - every action will ask you to sign`, 'success');
-  }
-  return true;
-}
-
-function renderSignerBar() {
-  renderNetwork();
-  $('signer-note').textContent =
-    'Every action asks your wallet to sign. Consensus takes about a minute, so approve promptly - a market can close while the prompt is open.';
-  $('wallet-address').textContent = shorten(signer.address);
+  $('net-account').hidden = !connected;
+  $('btn-connect').hidden = connected;
+  setText($('wallet-address'), shorten(signer.address));
   $('wallet-address').title = signer.address || '';
 }
 
-/** Says which network the wallet is on, and offers the fix when it is wrong.
- *
- *  A wallet is the one thing here that can wander onto another chain, so this
- *  is the one place the app has to check rather than assume. */
-function renderNetwork() {
-  const nameEl = $('network-name');
-  const btn = $('btn-switch-chain');
-  const id = signer.chainId;
-  const onStudio = id === CHAIN_ID_HEX;
-  if (onStudio) {
-    nameEl.textContent = 'GenLayer StudioNet (61999)';
-  } else if (id) {
-    const known = KNOWN_CHAINS[id];
-    nameEl.textContent = `${known || 'Unknown chain'} (${parseInt(id, 16)}) - wrong network`;
-  } else {
-    nameEl.textContent = 'Unknown';
+// --- how to take part ------------------------------------------------
+
+/** Step two is deposited GEN, not wallet GEN: gas alone cannot be staked, and
+ *  a page that ticked the box on gas would be pointing at the wrong balance. */
+function renderSteps() {
+  const states = [
+    ['step-connect', isSignedIn()],
+    ['step-gen', deposited > 0n],
+    ['step-act', markets.some((m) => m.status === 'OPEN') && deposited > 0n],
+  ];
+  let pending = true;
+  let done = 0;
+  for (const [id, isDone] of states) {
+    const li = $(id);
+    li.classList.toggle('done', isDone);
+    li.classList.toggle('now', !isDone && pending);
+    if (isDone) done++;
+    else pending = false;
   }
-  nameEl.className = onStudio ? 'net-ok' : 'net-bad';
-  btn.hidden = onStudio;
-  // The badge dot is live state, not livery: amber the moment the wallet is
-  // somewhere other than the chain this contract is deployed on.
-  $('chain-dot').className = `dot ${onStudio || signer.mode !== 'wallet' ? 'ok' : 'bad'}`;
-  $('chain-label').textContent = onStudio || signer.mode !== 'wallet'
-    ? 'StudioNet 61999'
-    : 'wrong network';
+  // Kept on the page when complete: it is the only place that explains what a
+  // parimutuel pool is or why a bet takes a minute.
+  setText($('start-progress'), done === 3 ? 'all set' : `step ${done + 1} of 3`);
+  $('start').classList.toggle('complete', done === 3);
+}
+
+// --- tabs ------------------------------------------------------------
+
+function showTab(name) {
+  for (const t of document.querySelectorAll('.tab')) {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  }
+  for (const p of document.querySelectorAll('.tabpanel')) {
+    p.classList.toggle('active', p.id === `panel-${name}`);
+  }
+}
+
+// --- auth ------------------------------------------------------------
+
+function requireSignIn(action = 'do that') {
+  if (isSignedIn()) return true;
+  toast(`Connect a wallet to ${action}`, 'info');
+  $('start').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return false;
+}
+
+/** Redrawn on every auth change. The create form stays reachable signed out so
+ *  the shape of the thing is visible before anyone commits; the submit is what
+ *  asks for a wallet. */
+function applyAuthUI() {
+  renderNetbar();
+  $('account-actions').style.display = isSignedIn() ? '' : 'none';
+  setText($('signer-note'), isSignedIn()
+    ? 'Every action asks your wallet to sign. Consensus takes about a minute, so approve promptly - a market can close while the prompt is open.'
+    : '');
+  setText($('create-hint'), isSignedIn() ? '' : 'Connect a wallet to open a market.');
+  renderSteps();
+  renderMarkets();
 }
 
 async function refreshWallet() {
-  renderSignerBar();
-  if (!signer.address) return;
-  try {
-    const balHex = await rpc('eth_getBalance', [signer.address, 'latest']);
-    $('wallet-gas').textContent = gen(BigInt(balHex));
-  } catch { /* leave the last known figure */ }
-  try {
-    const deposited = await read('get_balance', [signer.address]);
-    $('wallet-balance').textContent = gen(deposited);
-  } catch { /* contract may not be reachable yet */ }
-}
-
-// --- contract calls --------------------------------------------------
-
-/** Reads retry, because DNS to studio.genlayer.com is intermittently flaky and a
- *  single dropped lookup would otherwise leave a field showing "-" for good. */
-async function read(functionName, args = [], tries = 3) {
-  let last;
-  for (let i = 0; i < tries; i++) {
-    try {
-      return await (readClient || signer.client).readContract({ address: contractAddress, functionName, args });
-    } catch (e) {
-      last = e;
-      await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
-    }
+  applyAuthUI();
+  if (!signer.address) {
+    walletGen = 0n; deposited = 0n;
+    setText($('wallet-gas'), '-');
+    setText($('wallet-balance'), '-');
+    renderSteps();
+    return;
   }
-  throw last;
-}
-
-async function write(functionName, args = [], value = 0n) {
-  // A wallet will sign for whatever chain it happens to be on, and a signature
-  // against the wrong one is a confusing failure rather than a loud error.
-  if (signer.mode === 'wallet') {
-    const ok = await ensureStudioChain();
-    signer.chainId = await readChainId();
-    renderNetwork();
-    if (!ok) {
-      throw new Error('Your wallet is not on GenLayer StudioNet (chain 61999). Switch network and try again.');
-    }
-  }
-  const hash = await signer.client.writeContract({ address: contractAddress, functionName, args, value });
-  await signer.client.waitForTransactionReceipt({
-    hash, status: TransactionStatus.ACCEPTED, interval: 3000, retries: 60,
-  });
-  // ACCEPTED does not mean a read will see it yet: reading straight after a
-  // successful bet returned the pre-transaction pools, so the success toast
-  // appeared over unchanged numbers, which reads as a failure. Waiting a beat
-  // before the caller re-reads costs a couple of seconds and removes that.
-  await new Promise((r) => setTimeout(r, 4000));
-  return hash;
+  // Logged rather than swallowed: a silent catch here is how a balance that
+  // failed to read once looks identical to a balance that is genuinely zero.
+  try {
+    walletGen = BigInt(await rpc('eth_getBalance', [signer.address, 'latest']));
+    setText($('wallet-gas'), gen(walletGen));
+  } catch (e) { console.debug('wallet balance', e); }
+  try {
+    deposited = BigInt(await read('get_balance', [signer.address]));
+    setText($('wallet-balance'), gen(deposited));
+  } catch (e) { console.debug('get_balance', e); }
+  renderSteps();
 }
 
 // --- markets ---------------------------------------------------------
@@ -547,6 +252,10 @@ function sortForDisplay(list) {
 function renderMarkets() {
   const host = $('markets');
   cardIndex.clear();
+  // The tab counts what is still bettable, not the whole history - a "42" that
+  // is mostly settled markets tells you nothing about whether to look.
+  const open = markets.filter((m) => statusOf(m).key === 'open').length;
+  setText($('tab-markets-count'), open ? String(open) : '');
   if (!markets.length) {
     host.innerHTML = '<p class="empty">No markets yet. Open the first one.</p>';
     return;
@@ -745,7 +454,7 @@ function tickCountdowns() {
  * open, closed and resolved - because a rebuild costs the user their caret.
  */
 async function pollChain() {
-  if (busy || document.hidden) return;
+  if (isBusy() || document.hidden || isRateLimited()) return;
   // The read path backs off on its own; this just avoids queueing behind it.
   let fresh;
   try {
@@ -787,10 +496,6 @@ async function pollChain() {
   }
 }
 
-function setText(el, value) {
-  if (el && el.textContent !== value) el.textContent = value;
-}
-
 function hasMoney(market) {
   return BigInt(market.yes_pool || 0) + BigInt(market.no_pool || 0) > 0n;
 }
@@ -816,12 +521,6 @@ function formatMult(m) {
   // sub-1x figure a lone pool would imply.
   if (m.refund) return 'refund at 1.00x';
   return m.value.toFixed(2) + 'x';
-}
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
 }
 
 // --- actions ---------------------------------------------------------
@@ -858,15 +557,23 @@ async function resolveMarket(market) {
 }
 
 async function refreshClaimable() {
-  if (!isSignedIn()) { $('claimable-panel').hidden = true; return; }
+  if (!isSignedIn()) {
+    $('claimable-panel').hidden = true;
+    $('claimable-list').innerHTML = '';
+    claimableCount = 0;
+    setText($('tab-claim-count'), '');
+    return;
+  }
   try {
     const raw = await read('get_claimable', [signer.address]);
     const items = JSON.parse(typeof raw === 'string' ? raw : '[]');
     const panel = $('claimable-panel');
     const list = $('claimable-list');
+    claimableCount = items.length;
+    setText($('tab-claim-count'), items.length ? String(items.length) : '');
+    list.innerHTML = '';
     if (!items.length) { panel.hidden = true; return; }
     panel.hidden = false;
-    list.innerHTML = '';
     for (const item of items) {
       const row = document.createElement('div');
       row.className = 'claim-row';
@@ -906,7 +613,7 @@ async function createMarket(event) {
     await write('create_market', [question, criteria, closeTs, sources, minBet, feeBps]);
     toast('Market created', 'success');
     $('create-form').reset();
-    $('create-panel').hidden = true;
+    showTab('markets');
     await loadMarkets();
   });
 }
@@ -970,66 +677,79 @@ function checkSources() {
 
 // --- boot ------------------------------------------------------------
 
+// --- boot ------------------------------------------------------------
+
+let reloading = null;
+
+/** Coalesced. Boot both initialises the wallet and loads; connecting fires an
+ *  auth change *and* returns to whoever clicked. Left alone that is two full
+ *  passes back to back, which is what trips the node's rate limit - and a
+ *  rate-limited read fails quietly, so the page just looks wrong. */
+function reloadAll({ force = false } = {}) {
+  if (reloading && !force) return reloading;
+  const previous = reloading;
+  const run = (async () => {
+    if (previous) await previous.catch(() => {});
+    await loadMarkets();
+    await refreshWallet();
+  })();
+  reloading = run;
+  run.catch(() => {}).then(() => { if (reloading === run) reloading = null; });
+  return run;
+}
+
 async function main() {
-  $('mark-slot').innerHTML = markSvg(32);
+  $('mark-slot').innerHTML = markSvg(30);
   $('favicon').href = faviconHref();
+  setText($('contract-address'), shorten(contractAddress));
+  $('net-contract').href = `${EXPLORER}/address/${contractAddress}`;
+  $('net-contract').title = contractAddress;
+  $('explorer-link').href = `${EXPLORER}/address/${contractAddress}`;
 
-  readClient = createClient({ chain: studionet, endpoint: RPC });
+  // Connecting changes what is claimable and what can be staked, so an auth
+  // change re-reads rather than merely re-rendering.
+  await initWallet({
+    onAuthChange: () => {
+      applyAuthUI();
+      reloadAll().catch((e) => console.error('reload', e));
+    },
+  });
 
-  // A returning visitor is put back where they left off, but only where that
-  // needs no permission: the wallet is reconnected silently or not at all, so
-  // opening the page never raises a prompt.
-  if (localStorage.getItem(MODE_STORAGE) === 'wallet') {
-    // MetaMask can inject after this script runs, so give it a moment.
-    for (let i = 0; i < 20 && !getProvider(); i++) await new Promise((r) => setTimeout(r, 100));
-    if (getProvider()) await connectWallet({ silent: true });
-  }
-  applyAuthUI();
-
-  $('btn-open-login').onclick = showLogin;
-  $('btn-login-wallet').onclick = async () => {
-    if (await connectWallet()) { applyAuthUI(); await refreshWallet(); }
-  };
+  // connectWallet fires the auth change, which reloads; reloading here as well
+  // is how the burst that trips the rate limit gets built.
+  const connect = () => connectWallet();
+  $('btn-connect').onclick = connect;
+  $('step-connect-btn').onclick = connect;
+  $('btn-signout').onclick = signOut;
   $('btn-switch-chain').onclick = async () => {
     const ok = await ensureStudioChain();
     signer.chainId = await readChainId();
-    renderNetwork();
-    toast(ok ? 'Now on StudioNet' : 'Could not switch - approve the request in your wallet', ok ? 'success' : 'error');
-    if (ok) await refreshWallet();
+    renderNetbar();
+    toast(ok ? 'Now on StudioNet' : 'Could not switch - approve it in your wallet', ok ? 'success' : 'error');
+    if (ok) await reloadAll({ force: true });
   };
-  $('btn-signout').onclick = signOut;
 
-  $('contract-address').textContent = contractAddress;
-  $('explorer-link').href = `${EXPLORER}/address/${contractAddress}`;
-
-  buildTemplateChips();
-  $('create-form').addEventListener('submit', createMarket);
-  $('f-sources').addEventListener('input', checkSources);
   $('btn-fund').onclick = fundSelf;
   $('btn-deposit').onclick = deposit;
   $('btn-withdraw').onclick = withdrawAll;
-  $('btn-open-create').onclick = () => {
-    $('create-panel').hidden = false;
-    $('create-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  $('btn-close-create').onclick = () => { $('create-panel').hidden = true; };
-  $('btn-check-sources').onclick = () => previewSources();
-  $('btn-toggle-guide').onclick = () => {
-    const steps = $('guide-steps');
-    const hiding = !steps.hidden;
-    steps.hidden = hiding;
-    $('btn-toggle-guide').textContent = hiding ? 'Show' : 'Hide';
-    try { localStorage.setItem(GUIDE_STORAGE, hiding ? 'hidden' : 'shown'); } catch { /* private mode */ }
-  };
-  if (localStorage.getItem(GUIDE_STORAGE) === 'hidden') {
-    $('guide-steps').hidden = true;
-    $('btn-toggle-guide').textContent = 'Show';
-  }
-  $('btn-refresh').onclick = () => loadMarkets().catch((e) => toast(cleanError(e), 'error'));
+  $('step-gen-btn').onclick = fundSelf;
+  $('step-deposit-btn').onclick = deposit;
+  $('step-bet-btn').onclick = () => { showTab('markets'); $('panel-markets').scrollIntoView({ behavior: 'smooth' }); };
+  $('step-create-btn').onclick = () => { showTab('create'); $('panel-create').scrollIntoView({ behavior: 'smooth' }); };
 
-  await refreshWallet();
+  $('create-form').addEventListener('submit', createMarket);
+  $('f-sources').addEventListener('input', checkSources);
+  $('btn-check-sources').onclick = () => previewSources();
+  $('btn-refresh').onclick = () => reloadAll({ force: true }).catch((e) => toast(cleanError(e), 'error'));
+
+  for (const t of document.querySelectorAll('.tab')) {
+    t.onclick = () => showTab(t.dataset.tab);
+  }
+
+  buildTemplateChips();
+  applyAuthUI();
   try {
-    await loadMarkets();
+    await reloadAll();
   } catch (e) {
     toast(`Could not load markets: ${cleanError(e)}`, 'error');
   }
@@ -1130,4 +850,5 @@ async function previewSources() {
   }
 }
 
+main();
 main();
