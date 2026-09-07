@@ -27,7 +27,7 @@
     },
     {
       "name": "anybet-export",
-      "runtimeExecutable": "C:Users\u0001phutAppDataLocalProgramsPythonPython313python.exe",
+      "runtimeExecutable": "C:/Users/1phut/AppData/Local/Programs/Python/Python313/python.exe",
       "runtimeArgs": [
         "-m",
         "http.server",
