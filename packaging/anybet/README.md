@@ -3,9 +3,9 @@
 **Track:** Prediction Markets & Real-World Settlement — Agent Tank hackathon
 (`https://portal.genlayer.foundation/agent-tank/hackathon`)
 
-**Demo:** <https://ntclick.github.io/anybet/> — the overview.
+**Demo:** <https://anybet.onrender.com/anybet.html> — the overview.
 The app, where you open markets, bet, resolve and collect, is at
-[`/app.html`](https://ntclick.github.io/anybet/app.html).
+[`/app.html`](https://anybet.onrender.com/app.html).
 
 **Contract:** [`0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774`](https://explorer-studio.genlayer.com/address/0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774)
 on GenLayer StudioNet, chain 61999 — every market, every bet on its book, and

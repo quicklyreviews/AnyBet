@@ -84,10 +84,12 @@ const PROFILES = {
       '.gitignore',
       '.github/workflows/pages.yml',
     ],
-    // Links follow the rename above.
-    rewrite: [[/\banybet\.html/g, 'index.html']],
+    // Links follow the rename above - relative ones. The Render site serves
+    // the combined tree, where anybet.html is still the overview's address,
+    // so an absolute link into it is left alone.
+    rewrite: [[/(?<!onrender\.com\/)\banybet\.html/g, 'index.html']],
     overlay: 'packaging/anybet',
-    leaks: [/noclaim/i, /no_claim/i, /cover-templates/i, /\banybet\.html/i],
+    leaks: [/noclaim/i, /no_claim/i, /cover-templates/i, /(?<!onrender\.com\/)\banybet\.html/i],
     defaultOut: 'anybet-export',
   },
 };
