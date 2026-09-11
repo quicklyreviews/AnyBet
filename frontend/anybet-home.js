@@ -15,7 +15,7 @@ import { studionet } from 'genlayer-js/chains';
 import { markSvg, faviconHref } from './brand.js';
 
 const RPC = 'https://studio.genlayer.com/api';
-const EXPLORER = 'https://genlayer-explorer.vercel.app';
+const EXPLORER = 'https://explorer-studio.genlayer.com';
 const CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
 // noclaim:start
 const COVER_CONTRACT = '0xBF326FA29B839cF95d3c9d0895b7A852031C3822';
