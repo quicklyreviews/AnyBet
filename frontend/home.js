@@ -16,10 +16,7 @@ import { markSvg, faviconHref } from './brand.js';
 
 const RPC = 'https://studio.genlayer.com/api';
 const EXPLORER = 'https://genlayer-explorer.vercel.app';
-const CONTRACT = '0xBF326FA29B839cF95d3c9d0895b7A852031C3822';
-// anybet:start
-const BET_CONTRACT = '0x99F7ECE24CdfFb9Eb5C7493Cb6bAC42DAc3B3774';
-// anybet:end
+const CONTRACT = '0xB21Bb12256e9EaEfa5Af906F73Ff7766b6b1cce7';
 const ONE_GEN = 10n ** 18n;
 
 const $ = (id) => document.getElementById(id);
@@ -172,11 +169,6 @@ async function main() {
   $('cover-address').textContent = shorten(CONTRACT);
   $('net-contract-cover').href = `${EXPLORER}/address/${CONTRACT}`;
   $('net-contract-cover').title = CONTRACT;
-  // anybet:start
-  $('contract-address').textContent = shorten(BET_CONTRACT);
-  $('net-contract-bet').href = `${EXPLORER}/address/${BET_CONTRACT}`;
-  $('net-contract-bet').title = BET_CONTRACT;
-  // anybet:end
   $('footer-address').textContent = CONTRACT;
   $('explorer-link').href = `${EXPLORER}/address/${CONTRACT}`;
 
